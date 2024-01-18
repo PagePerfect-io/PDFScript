@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace PagePerfect.PdfScript;
+namespace PagePerfect.PdfScript.Reader;
 
 /// <summary>
 /// The PdfsLexer is a .pdfs document lexer. It reads tokens off of a stream.

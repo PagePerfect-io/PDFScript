@@ -1,4 +1,4 @@
-namespace PagePerfect.PdfScript;
+namespace PagePerfect.PdfScript.Reader;
 
 /// <summary>
 /// The PdfsTokenType enumeration lists the possible token types in a .pdfs document.

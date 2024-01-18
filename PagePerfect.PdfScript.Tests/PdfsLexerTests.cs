@@ -1,4 +1,5 @@
 using System.Text;
+using PagePerfect.PdfScript.Reader;
 
 namespace PagePerfect.PdfScript.Tests;
 
