@@ -1,4 +1,5 @@
 # PDFScript
+
 A transpiler for PDF: an improved and simplified language to create good looking documents.
 
 PDFScript lets you focus on the page content while it handles the plumbing of creating a PDF file.
@@ -34,7 +35,7 @@ BT 1 0 0 1 20 810 Tm /TimeRoman 12 Tf (Hello, page two!) Tj ET
 The PDF file format is 30 years old and yet not much has changed in its core set of content instructions. Common and popular features like rounded rectangles or gradient fills are not available in the PDF specification, but you can use them in PDFScript.
 
 ```
-10 10 200 150 1.0 0.2 0.8 0.7 0.2 1.0 lrg 10 10 200 150 10 10 rr f
+10 10 200 150 1.0 0.2 0.8 0.7 0.2 1.0 lrg10 10 200 150 10 10 rr f
 ```
 
 This produces a page with a rounded rectangle (the `rr` instruction), filled with a linear gradient brush (defined by `lrg`).
@@ -67,7 +68,7 @@ In a `.pdfs` file, you simply refer to the resources in the prologue, and then u
 BT /MyRoboto 12 Tf 1 0 0 1 10 430 Tm (Hello, Roboto!) Tj ET
 ```
 
-PDFScript will take care of all of the necessary work to turn this into a valid PDF file. This includes embedding the image and the font, and figuring out how to handle the typeface. 
+PDFScript will take care of all of the necessary work to turn this into a valid PDF file. This includes embedding the image and the font, and figuring out how to handle the typeface.
 
 ### Unicode
 
@@ -111,6 +112,7 @@ $content
 1 0 0 1  0 14 cm
 $content
 ```
+
 Note the `endstream` token at the end of the content. This serves two purposes: first it maintains consistency with the syntax for content streams in PDF files; secondly, it allows you to use line breaks in the content, as the processor will consider everything after `/Content` to be part of the content, up to the `endstream` token.
 
 ### Flowing text
@@ -146,15 +148,15 @@ The Tfl operation returns the width and height in two variables. The text-measur
 
 ```
 1 0 0 1 10 750 cm
-BT 
+BT
 /TimesRoman 12 Tf
 $width $height 200 150 (The quick brown fox jumps over the lazy dog) Tme
 ET
 0.9 0.9 0.9 RG
 0 0 $width $height 10 10 rr f
-BT 
+BT
 /TimesRoman 12 Tf
-0 0 200 150 (The quick brown fox jumps over the lazy dog) Tfl 
+0 0 200 150 (The quick brown fox jumps over the lazy dog) Tfl
 ET
 ```
 
@@ -168,9 +170,9 @@ The example below again renders text on top of a grey rectangle, but we will giv
 
 ```
 1 0 0 1 10 750 cm
-BT 
+BT
 /TimesRoman 12 Tf
-$width $height 200 150 (The quick brown fox jumps over the lazy dog)  Tme 
+$width $height 200 150 (The quick brown fox jumps over the lazy dog)  Tme
 ET
 
 $width $width 20 add
@@ -178,9 +180,9 @@ $height $height 14 add
 
 0.9 0.9 0.9 RG
 0 0 $width $height 10 10 rr f
-BT 
+BT
 /TimesRoman 12 Tf
-10 7 200 150 (The quick brown fox jumps over the lazy dog) Tfl 
+10 7 200 150 (The quick brown fox jumps over the lazy dog) Tfl
 ET
 ```
 
@@ -188,7 +190,7 @@ The arithmetic operations are of the form `<out> <in> <op>` or `<out> <in1> <in2
 
 ### Conditional rendering with logical operations
 
-Logical operations act on numerical and boolean variables or constants, and can be used to compare variables. The primary use case for boolean variables is their ability to be used in  `if`, `else`, `elseif` constructions, which allow conditional rendering.
+Logical operations act on numerical and boolean variables or constants, and can be used to compare variables. The primary use case for boolean variables is their ability to be used in `if`, `else`, `elseif` constructions, which allow conditional rendering.
 
 In the following example, a rectangle is filled with a red or green colour depending on the value of a variable:
 
@@ -216,6 +218,7 @@ pdfs document.pdfs output.pdf
 ```
 
 Or use the .NET NuGet package to create PDFs from your .net project.
+
 ```
 dotnet add package PdfScript
 ```
@@ -230,8 +233,9 @@ doc.SaveAs(“Output.pdf”);
 ### Passing variables into scripts
 
 To pass variables into a script using the CLI, use the `—var` switch.
+
 ```
-pdfs --var $text (Hello, World!) document.pdfs output.pdf 
+pdfs --var $text (Hello, World!) document.pdfs output.pdf
 ```
 
 To pass variables into a script using the .net API, use the override of the Document initialiser:
