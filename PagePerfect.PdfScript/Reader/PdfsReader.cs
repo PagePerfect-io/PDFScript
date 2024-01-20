@@ -59,10 +59,8 @@ public class PdfsReader(Stream stream)
                 case PdfsTokenType.ArrayStart:
                     // If this is the start of an array, then we need to
                     // read the array, and put it on the operand stack.
-                    if (await PdfsValue.ReadArray(_lexer, out var array))
-                    {
-                        _operandStack.Push(array);
-                    }
+                    var array = await PdfsValue.ReadArray(_lexer);
+                    if (null != array) _operandStack.Push(array);
                     else throw new PdfsReaderException("EOF reached while reading array value.");
                     break;
 
@@ -70,39 +68,37 @@ public class PdfsReader(Stream stream)
                     // If we read the start of a dictionary, then we need to
                     // read the entire dictionary, and put it on the operand
                     // stack.
-                    if (await PdfsValue.ReadDictionary(_lexer, out var dict))
-                    {
-                        _operandStack.Push(dict);
-                    }
+                    var dict = await PdfsValue.ReadDictionary(_lexer);
+                    if (null != dict) _operandStack.Push(dict);
                     else throw new PdfsReaderException("EOF reached while reading dictionary value.");
                     break;
 
                 case PdfsTokenType.Keyword:
-                    await ReadKeyword();
-                    break;
+                    throw new NotImplementedException();
+                //await ReadKeyword();
 
                 case PdfsTokenType.Name:
                     // A name can go onto the operand stack.
-                    _operandStack.Push(new PdfsName(_lexer.String));
+                    _operandStack.Push(new PdfsValue(_lexer.String!, PdfsValueKind.Name));
                     break;
 
                 case PdfsTokenType.Number:
                     // A number can go onto the operand stack.
-                    _operandStack.Push(new PdfsNumber(_lexer.Number));
+                    _operandStack.Push(new PdfsValue(_lexer.Number));
                     break;
 
                 case PdfsTokenType.PrologFragment:
-                    await ReadPrologFragment();
-                    break;
+                    throw new NotImplementedException();
+                //await ReadPrologFragment();
 
                 case PdfsTokenType.String:
                     // A string can go onto the operand stack.
-                    _operandStack.Push(new PdfsString(_lexer.String));
+                    _operandStack.Push(new PdfsValue(_lexer.String!));
                     break;
 
                 case PdfsTokenType.Variable:
                     // A variable can go onto the operand stack.
-                    _operandStack.Push(new PdfsVariable(_lexer.String));
+                    _operandStack.Push(new PdfsValue(_lexer.String!, PdfsValueKind.Variable));
                     break;
 
                 case PdfsTokenType.Whitespace:

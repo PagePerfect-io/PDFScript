@@ -1,3 +1,5 @@
+using Microsoft.VisualBasic;
+
 namespace PagePerfect.PdfScript.Reader;
 
 /// <summary>
@@ -166,5 +168,190 @@ public class PdfsValue
         PdfsValueKind.Array => _arrayValue!,
         _ => throw new InvalidOperationException("Value is not an array"),
     };
+
+    /// <summary>
+    /// Reads an array of PDFs value from the specified lexer. This method
+    /// assumes the lexer has already been used to read the array-start token. 
+    /// This method will throw an exception when the syntax of the array is
+    /// invalid. This method will return a Null reference if the end of the file
+    /// is reached before the array is complete.
+    /// </summary>
+    /// <param name="lexer">The lexer.</param>
+    /// <param name="val">(Out) The array value.</param>
+    /// <returns>The array PdfsValue instance. A Null reference, otherwise.</returns>
+    public static async Task<PdfsValue?> ReadArray(PdfsLexer lexer)
+    {
+        var array = new List<PdfsValue>();
+        var finished = false;
+
+        while (false == finished && await lexer.Read())
+        {
+            // In the array state, we treat the following tokens and names as special:
+            // [ or << - parse a nested array or dictionary.
+            // ] - end of the array.
+            // # - invalid, a prolog fragment cannot appear in an array.            
+            switch (lexer.TokenType)
+            {
+                case PdfsTokenType.ArrayEnd:
+                    finished = true;
+                    break;
+
+                case PdfsTokenType.ArrayStart:
+                    var nested = await ReadArray(lexer);
+                    if (nested != null) array.Add(nested);
+                    else return null;
+                    break;
+
+                case PdfsTokenType.Number:
+                    array.Add(new PdfsValue(lexer.Number));
+                    break;
+
+                case PdfsTokenType.R:
+                    throw new PdfsReaderException("Object reference not allowed in PDFScript documents.");
+
+                case PdfsTokenType.PrologFragment:
+                    throw new PdfsReaderException("Unexpected Prolog fragments in array.");
+
+                case PdfsTokenType.DictionaryStart:
+                    var dict = await ReadDictionary(lexer);
+                    if (null != dict) array.Add(dict!);
+                    else return null;
+                    break;
+
+                case PdfsTokenType.DictionaryEnd:
+                    throw new PdfsReaderException("Unexpected >> token in array.");
+
+                case PdfsTokenType.String:
+                    array.Add(new PdfsValue(lexer.String!));
+                    break;
+
+                case PdfsTokenType.Name:
+                    array.Add(new PdfsValue(lexer.String!, PdfsValueKind.Name));
+                    break;
+
+                case PdfsTokenType.Keyword:
+                    throw new PdfsReaderException($"Unexpected keyword {lexer.String!} in array.");
+
+                case PdfsTokenType.Variable:
+                    array.Add(new PdfsValue(lexer.String!, PdfsValueKind.Variable));
+                    break;
+            }
+        }
+
+        if (!finished) return null;
+        return new PdfsValue(array.ToArray());
+    }
+
+    /// <summary>
+    /// Reads a dictionary of PDFs value from the specified lexer. This method
+    /// assumes the lexer has already been used to read the dictionary-start token. 
+    /// This method will throw an exception when the syntax of the dictionary is
+    /// invalid. This method will return a Null reference if the end of the file
+    /// is reached before the dictionary is complete.
+    /// </summary>
+    /// <param name="lexer">The lexer.</param>
+    /// <param name="val">(Out) The dictionary value.</param>
+    /// <returns>The dictionary PDF value instance if successful. Otherwise, a Null reference.</returns>
+    public static async Task<PdfsValue?> ReadDictionary(PdfsLexer lexer)
+    {
+        var dictionary = new Dictionary<string, PdfsValue>();
+        var finished = false;
+        string? dictKey = null;
+
+        while (false == finished && await lexer.Read())
+        {
+            if (null == dictKey)
+            {
+                // If we've not yet read the dictionary key, then we expect a name or the
+                // dictionary end token. Any other non-whitespace token is invalid.
+                switch (lexer.TokenType)
+                {
+                    // If this token is a dictionary end token, then we're done.
+                    case PdfsTokenType.DictionaryEnd:
+                        finished = true;
+                        break;
+
+                    // If this token is a name then we remember it - this is our
+                    // dictionary key.
+                    case PdfsTokenType.Name:
+                        dictKey = lexer.String;
+                        break;
+
+                    case PdfsTokenType.Whitespace:
+                        // We ignore whitespace and comments.
+                        break;
+
+                    default:
+                        throw new PdfsReaderException(
+                            $"Unexpected {lexer.TokenType} token in dictionary - expected name or >> token.");
+                }
+            }
+            else
+            {
+                // We've read the dictionary key, so now we read the value(s).
+                switch (lexer.TokenType)
+                {
+                    case PdfsTokenType.ArrayEnd:
+                        throw new PdfsReaderException("Unexpected ] token in dictionary");
+
+                    case PdfsTokenType.ArrayStart:
+                        var arr = await ReadArray(lexer);
+                        if (null == arr) return null;
+
+                        dictionary.Add(dictKey, arr);
+                        dictKey = null;
+                        break;
+
+                    case PdfsTokenType.Name:
+                        // This is a name. We use it as the value of the dictionary entry.
+                        dictionary.Add(dictKey, new PdfsValue(lexer.String!, PdfsValueKind.Name));
+                        dictKey = null;
+                        break;
+
+                    case PdfsTokenType.Number:
+                        // This is a number. We use it as the value of the dictionary entry.
+                        dictionary.Add(dictKey, new PdfsValue(lexer.Number));
+                        dictKey = null;
+                        break;
+
+                    case PdfsTokenType.R:
+                        throw new PdfsReaderException("Object reference not allowed in PDFScript documents.");
+
+                    case PdfsTokenType.PrologFragment:
+                        throw new PdfsReaderException("Unexpected Prolog fragments in array.");
+
+                    case PdfsTokenType.DictionaryStart:
+                        var nested = await ReadDictionary(lexer);
+                        if (null == nested) return null;
+
+                        dictionary.Add(dictKey, nested);
+                        dictKey = null;
+
+                        break;
+
+                    case PdfsTokenType.DictionaryEnd:
+                        throw new PdfsReaderException(
+                            $"Unexpected {lexer.TokenType} token in dictionary - expected name or >> token.");
+
+                    case PdfsTokenType.String:
+                        // This is a string. We use it as the value of the dictionary entry.
+                        dictionary.Add(dictKey, new PdfsValue(lexer.String!));
+                        dictKey = null;
+                        break;
+
+                    case PdfsTokenType.Keyword:
+                        throw new PdfsReaderException($"Unexpected keyword {lexer.String!} in array.");
+
+                    case PdfsTokenType.Variable:
+                        // This is a variable. We use it as the value of the dictionary entry.
+                        dictionary.Add(dictKey, new PdfsValue(lexer.String!, PdfsValueKind.Variable));
+                        dictKey = null;
+                        break;
+                }
+            }
+        }
+
+        return !finished ? null : new PdfsValue(dictionary);
+    }
     #endregion
 }
