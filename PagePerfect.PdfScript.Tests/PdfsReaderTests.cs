@@ -1,5 +1,6 @@
 using System.Text;
 using PagePerfect.PdfScript.Reader;
+using PagePerfect.PdfScript.Reader.Statements;
 
 namespace PagePerfect.PdfScript.Tests;
 
@@ -35,8 +36,95 @@ public class PdfsReaderTests
         Assert.True(await reader.Read());
         Assert.NotNull(reader.Statement);
         Assert.Equal(PdfsStatementType.EndPageStatement, reader.Statement.Type);
-        Assert.IsType<Reader.Statements.EndPageStatement>(reader.Statement);
+        Assert.IsType<EndPageStatement>(reader.Statement);
+    }
+    #endregion
 
+    #region Reading Prologue statements
+    /// <summary>
+    /// The PdfsReader should read a "var" prolog statement.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadVarPrologStatement()
+    {
+        using var stream = S("# var $MyFont /Name /Helvetica");
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.PrologStatement, reader.Statement.Type);
+        Assert.IsType<Reader.Statements.Prolog.VarDeclaration>(reader.Statement);
+        var @var = (Reader.Statements.Prolog.VarDeclaration)reader.Statement;
+        Assert.Equal(PrologStatementType.VarDeclaration, @var.PrologType);
+
+    }
+
+    /// <summary>
+    /// The PdfsReader should throw when a "var" prolog statement
+    /// is missing its value.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenValueMissingInVarPrologStatement()
+    {
+        using var stream = S("# var $MyFont /Name");
+        var reader = new PdfsReader(stream);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+    }
+
+    /// <summary>
+    /// The PdfsReader should throw when a "var" prolog statement
+    /// uses an invalid 'type' value.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenTypeInvalidInVarPrologStatement()
+    {
+        // Must use one of the known datatypes.
+        using (var stream = S("# var $MyFont /Unknown /Helvetica"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+
+        // Can't use a keyword or other token type, only a name.
+        using (var stream = S("# var $MyFont name /Helvetica"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+    }
+
+    /// <summary>
+    /// The PdfsReader should throw when a "var" prolog statement
+    /// uses an invalid 'type' value.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenVariableNameInvalidInVarPrologStatement()
+    {
+        // Must use the $var notation, can't use a string or name or anything else.
+        using (var stream = S("# var /MyFont /Name /Helvetica"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+        using (var stream = S("# var myFont /Name /Helvetica"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+    }
+
+    /// <summary>
+    /// The PdfsReader should throw when a "var" prolog statement
+    /// uses a value whose type doesn't match the type specified.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenValueTypeMismatchInVarPrologStatement()
+    {
+        // Type is /Name, but value is a number.
+        using (var stream = S("# var $MyFont /Name 20"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
     }
     #endregion
 

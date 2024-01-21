@@ -706,6 +706,63 @@ public class PdfsLexer(Stream stream)
 
     }
 
+    public async Task<string?> ReadName()
+    {
+        if (!await ReadToken(PdfsTokenType.Name)) return null;
+        return new string(TokenBuffer[..TokenLength]);
+    }
+
+    public async Task<float?> ReadNumber()
+    {
+        if (!await ReadToken(PdfsTokenType.Number)) return null;
+        return Number;
+    }
+
+    public async Task<string?> ReadKeyword()
+    {
+        if (!await ReadToken(PdfsTokenType.Keyword)) return null;
+        return new string(TokenBuffer[..TokenLength]);
+    }
+
+    public async Task<string?> ReadString()
+    {
+        if (!await ReadToken(PdfsTokenType.String)) return null;
+        return new string(TokenBuffer[..TokenLength]);
+    }
+
+    /// <summary>
+    /// Reads a token from the stream, and validates that it is the correct
+    /// type. This method reads tokens, ignoring whitespace and comments,
+    /// and checks that the first non-whitespace token matches the
+    /// specified type. If no tokens could be read from the stream, this
+    /// method returns False. If the token does not match, it returns False. 
+    /// </summary>
+    /// <param name="target">The target token type.</param>
+    /// <returns>True if a token could be read, and the first non-whitespace token matches the target type. False otherwise.</returns> <summary>
+    public async Task<bool> ReadToken(PdfsTokenType target)
+    {
+        while (await Read())
+        {
+            switch (TokenType)
+            {
+                case PdfsTokenType.Whitespace:
+                    continue;
+                case PdfsTokenType.Comment:
+                    continue;
+                default:
+                    return TokenType == target;
+            }
+        }
+
+        return false;
+    }
+
+    public async Task<string?> ReadVariable()
+    {
+        if (!await ReadToken(PdfsTokenType.Variable)) return null;
+        return new string(TokenBuffer[..TokenLength]);
+    }
+
     /// <summary>
     /// Restores the stream position to the last preserved state.
     /// </summary>

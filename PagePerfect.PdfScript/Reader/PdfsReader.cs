@@ -109,8 +109,11 @@ public class PdfsReader(Stream stream)
                     break;
 
                 case PdfsTokenType.PrologFragment:
-                    throw new NotImplementedException();
-                //await ReadPrologFragment();
+                    // If we find a # prolog fragement, then we will try to parse
+                    // a prolog statement from it.
+                    Statement = await PrologStatement.Parse(_lexer);
+                    finished = true;
+                    break;
 
                 case PdfsTokenType.String:
                     // A string can go onto the operand stack.
