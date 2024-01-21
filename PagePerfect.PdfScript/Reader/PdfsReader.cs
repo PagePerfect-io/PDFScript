@@ -1,3 +1,5 @@
+using PagePerfect.PdfScript.Reader.Statements;
+
 namespace PagePerfect.PdfScript.Reader;
 
 /// <summary>
@@ -74,8 +76,27 @@ public class PdfsReader(Stream stream)
                     break;
 
                 case PdfsTokenType.Keyword:
-                    throw new NotImplementedException();
-                //await ReadKeyword();
+                    // A keyword. We take care of reserved keywords (true, false) and then
+                    // we try to match the keyword against known statements and graphics instructions.
+                    var keyword = _lexer.String!;
+                    switch (keyword)
+                    {
+                        case "true":
+                            _operandStack.Push(new PdfsValue(true));
+                            break;
+                        case "false":
+                            _operandStack.Push(new PdfsValue(false));
+                            break;
+                        default:
+                            // This keyword must be a statement such as a
+                            // conditional statement, function statement, or
+                            // a graphics operation.
+                            // So we parse the keyword to find out.
+                            Statement = ParseStatement(keyword);
+                            finished = true;
+                            break;
+                    }
+                    break;
 
                 case PdfsTokenType.Name:
                     // A name can go onto the operand stack.
@@ -110,12 +131,113 @@ public class PdfsReader(Stream stream)
                     break;
 
                 case PdfsTokenType.Null:
+                case PdfsTokenType.ArrayEnd:
+                case PdfsTokenType.DictionaryEnd:
+                case PdfsTokenType.R:
                 default:
                     throw new PdfsReaderException($"Unexpected token type: {_lexer.TokenType}");
             }
         }
 
         return finished;
+    }
+    #endregion
+
+
+
+    // Private implementation
+    // ======================
+    #region Private implementation
+    /// <summary>
+    /// Parses a statement. This method will determine the nature of the statement
+    /// through the current keyword, and validates the operand stack contains the
+    /// right sort of values before constructing a statement.
+    /// If the statment could not be created, or was found to be invalid, this
+    /// method throws an exception. 
+    /// </summary>
+    /// <param name="keyword">The current keyword</param>
+    /// <returns>The PDF statement.</returns>
+    private PdfsStatement ParseStatement(string keyword)
+    {
+        return keyword switch
+        {
+            // Look for flow control statement, such as "endpage"
+            "endpage" => new EndPageStatement(),
+            // Look for conditional statements, such as "if"
+
+            // Look for graphics operations, such as "re" and "Q"
+            // as per table 4.1 of PDF-1.7 (p.196)
+            /*
+                "q" => SaveGraphicsStateInstruction.Parse(operands),
+                "Q" => RestoreGraphicsStateInstruction.Parse(operands),
+                "gs" => GraphicsStateInstruction.Parse(operands),
+                "cm" => TransformationMatrixInstruction.Parse(operands),
+                "BX" => new[] { new BeginCompatibilityInstruction() },
+                "EX" => new[] { new EndCompatibilityInstruction() },
+                "BT" => TextInstructions.ParseBT(operands),
+                "ET" => TextInstructions.ParseET(operands),
+                "Tc" => TextInstructions.ParseTc(operands),
+                "Tw" => TextInstructions.ParseTw(operands),
+                "Tz" => TextInstructions.ParseTz(operands),
+                "TL" => TextInstructions.ParseTL(operands),
+                "Tf" => TextInstructions.ParseTf(operands),
+                "Tr" => TextInstructions.ParseTr(operands),
+                "Ts" => TextInstructions.ParseTs(operands),
+                "Td" => TextInstructions.ParseTd(operands),
+                "TD" => TextInstructions.ParseTD(operands),
+                "Tm" => TextInstructions.ParseTm(operands),
+                "T*" => TextInstructions.ParseTStar(operands),
+                "Tj" => TextInstructions.ParseTj(operands),
+                "'" => TextInstructions.ParseSQuot(operands),
+                "\"" => TextInstructions.ParseDQuot(operands),
+                "TJ" => TextInstructions.ParseTJ(operands),
+                "Do" => XObjectInstruction.Parse(operands),
+                "MP" => MarkerInstructions.ParseMP(operands),
+                "DP" => MarkerInstructions.ParseDP(operands),
+                "BMC" => MarkerInstructions.ParseBMC(operands),
+                "BDC" => MarkerInstructions.ParseBDC(operands),
+                "EMC" => MarkerInstructions.ParseEMC(operands),
+                "m" => PathInstructions.ParseM(operands),
+                "l" => PathInstructions.ParseL(operands),
+                "c" => PathInstructions.ParseC(operands),
+                "v" => PathInstructions.ParseV(operands),
+                "y" => PathInstructions.ParseY(operands),
+                "h" => PathInstructions.ParseH(operands),
+                "re" => PathInstructions.ParseRe(operands),
+                "S" => PathInstructions.ParseStroke(operands),
+                "s" => PathInstructions.ParseCloseAndStroke(operands),
+                "f" or "F" => PathInstructions.ParseFillNonZeroWinding(operands),
+                "f*" => PathInstructions.ParseFillEvenOdd(operands),
+                "B" => PathInstructions.ParseFillStrokeNonZeroWinding(operands),
+                "B*" => PathInstructions.ParseFillStrokeEvenOdd(operands),
+                "b" => PathInstructions.ParseCloseFillStrokeNonZeroWinding(operands),
+                "b*" => PathInstructions.ParseCloseFillStrokeEvenOdd(operands),
+                "n" => PathInstructions.ParseN(operands),
+                "W" => PathInstructions.ParseClipNonZeroWinding(operands),
+                "W*" => PathInstructions.ParseClipEvenOdd(operands),
+                "CS" => ColourInstruction.ParseCS(operands),
+                "cs" => ColourInstruction.Parsecs(operands),
+                "SC" => ColourInstruction.ParseSC(operands),
+                "sc" => ColourInstruction.Parsesc(operands),
+                "SCN" => ColourInstruction.ParseSCN(operands),
+                "scn" => ColourInstruction.Parsescn(operands),
+                "G" => ColourInstruction.ParseG(operands),
+                "g" => ColourInstruction.Parseg(operands),
+                "RG" => ColourInstruction.ParseRG(operands),
+                "rg" => ColourInstruction.Parserg(operands),
+                "K" => ColourInstruction.ParseK(operands),
+                "k" => ColourInstruction.Parsek(operands),
+                "w" => LineWidthInstruction.Parse(operands),
+                "J" => LineCapInstruction.Parse(operands),
+                "j" => LineJoinInstruction.Parse(operands),
+                "M" => MiterLimitInstruction.Parse(operands),
+                "d" => LineDashPatternInstruction.Parse(operands),
+                "ri" => RenderingIntentInstruction.Parse(operands),
+                "i" => FlatnessToleranceInstruction.Parse(operands),
+                _ => new[] { new UnknownInstruction(operands) },
+            */
+            _ => throw new PdfsReaderException($"Unknown statement or keyword at '{keyword}")
+        };
     }
     #endregion
 }
