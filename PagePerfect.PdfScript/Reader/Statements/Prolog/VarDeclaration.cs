@@ -4,7 +4,7 @@ namespace PagePerfect.PdfScript.Reader.Statements.Prolog;
 /// The VarDeclaration class represents a  '# var' prolog statement in a .pdfs file.
 /// </summary>
 /// <remarks>
-/// Initialises a new Var instance.
+/// Initialises a new VarDeclaration instance.
 /// </remarks>
 public class VarDeclaration(string name, PdfsValueKind datatype, PdfsValue value)
 : PrologStatement(PrologStatementType.VarDeclaration)

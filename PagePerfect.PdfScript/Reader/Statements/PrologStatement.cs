@@ -106,20 +106,49 @@ public abstract class PrologStatement(PrologStatementType type) : PdfsStatement(
                 return new VarDeclaration(name, PdfsValueKind.Name, new PdfsValue(nameValue!, PdfsValueKind.Name));
 
             case "/Array":
-                throw new NotImplementedException();
+                throw new PdfsReaderException($"Type mismatch: Arrays are not supported yet as variable types.");
 
             case "/Dictionary":
-                throw new NotImplementedException();
+                throw new PdfsReaderException($"Type mismatch: Dictionaries are not supported yet as variable types.");
 
             default:
                 throw new PdfsReaderException($"Invalid variable type '{type}'.");
         }
     }
 
+    /// <summary>
+    /// Parses a resource declaration (# resource ...) from the specified lexer, after 
+    /// the 'resource' keyword has already been read. 
+    /// </summary>
+    /// <param name="lexer">The lexer to read tokens from.</param>
+    /// <returns>The ResourceDeclaration instance.</returns>
+
     private static async Task<PrologStatement> ParseResourceDeclaration(PdfsLexer lexer)
     {
-        throw new NotImplementedException();
-    }
+        // Read the resource name.
+        var name = await lexer.ReadName();
+        if (null == name)
+            throw new PdfsReaderException($"Expected a name, but found '{lexer.TokenType}'.");
 
+        // Read the resource type.
+        var type = await lexer.ReadName();
+        if (null == type)
+            throw new PdfsReaderException($"Expected a name for resource type, but found '{lexer.TokenType}'.");
+
+        // Read the resource location.
+        var location = await lexer.ReadString();
+        if (null == location)
+            throw new PdfsReaderException($"Expected a string for location, but found '{lexer.TokenType}'.");
+
+        // We support Image and Font types.
+        var resourceType = type switch
+        {
+            "/Image" => ResourceType.Image,
+            "/Font" => ResourceType.Font,
+            _ => throw new PdfsReaderException($"Invalid resource type '{type}'."),
+        };
+
+        return new ResourceDeclaration(name, resourceType, location!);
+    }
     #endregion
 }

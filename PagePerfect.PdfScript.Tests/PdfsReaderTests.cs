@@ -126,6 +126,93 @@ public class PdfsReaderTests
             await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
         }
     }
+
+    /// <summary>
+    /// The PdfsReader should read a "resource" prolog statement.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadResourcePrologStatement()
+    {
+        using var stream = S("# resource /MyImage /Image (https://example.com/image.png)");
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.PrologStatement, reader.Statement.Type);
+        Assert.IsType<Reader.Statements.Prolog.ResourceDeclaration>(reader.Statement);
+        var @resource = (Reader.Statements.Prolog.ResourceDeclaration)reader.Statement;
+        Assert.Equal(PrologStatementType.ResourceDeclaration, @resource.PrologType);
+    }
+
+    /// <summary>
+    /// The PdfsReader class should throw an exception when the location for a resource
+    /// is invalid. 
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceLocationInvalidInResourcePrologStatement()
+    {
+        // Location is required.
+        using (var stream = S("# resource /MyImage /Image"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+
+        // Location must be a string.
+        using (var stream = S("# resource /MyImage /Image 20"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+    }
+
+    /// <summary>
+    /// The PdfsReader class should throw an exception when the resource
+    /// type is invalid. 
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceTypeInvalidInResourcePrologStatement()
+    {
+        // Resource type must be /Image or /Font, and is a required field.
+        using (var stream = S("# resource /MyImage (https://example.com/image.png)"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+
+        using (var stream = S("# resource /MyImage /Stuff (https://example.com/image.png)"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+    }
+
+    /// <summary>
+    /// The PdfsReader class should throw an exception when the resource
+    /// name is invalid. 
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceNameInvalidInResourcePrologStatement()
+    {
+        // Resource name must be a name (/Name) and is a required field.
+        using (var stream = S("# resource /Image (https://example.com/image.png)"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+
+        using (var stream = S("# resource (MyImage) /Image (https://example.com/image.png)"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+
+        using (var stream = S("# resource $MyImage /Image (https://example.com/image.png)"))
+        {
+            var reader = new PdfsReader(stream);
+            await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+        }
+    }
+
     #endregion
 
 

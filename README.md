@@ -61,8 +61,8 @@ In addition, they need a lot of plumbing to work. Embedding a font in a PDF requ
 In a `.pdfs` file, you simply refer to the resources in the prologue, and then use them in your content in plain old PDF syntax.
 
 ```
-# resource /Img1 /Image url(‘https://coolimage.com')
-# resource /MyRoboto /Font url(‘fonts.google.com/Roboto/ttf')
+# resource /Img1 /Image (https://coolimage.com)
+# resource /MyRoboto /Font (http://fonts.google.com/Roboto/ttf)
 
 320 0 0 320 10 450 /Img1 Do
 BT /MyRoboto 12 Tf 1 0 0 1 10 430 Tm (Hello, Roboto!) Tj ET
@@ -77,7 +77,7 @@ PDF uses a binary file format that supports 7-bit ASCII text and allows for mult
 A `.pdfs` file is a text file and can be stored in `UTF-8` format. It also supports escape sequences like you’re used to from other languages.
 
 ```
-# resource /Roboto /Font url(‘fonts.google.com/Roboto/ttf')
+# resource /Roboto /Font (http://fonts.google.com/Roboto/ttf)
 BT
 1 0 0 1 10 800 Tm /Roboto 12 Tf
 (Hello, XXX <smilie>) Tj
