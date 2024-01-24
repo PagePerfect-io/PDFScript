@@ -105,6 +105,47 @@ public class PdfsValue
     #endregion
 
 
+    public override bool Equals(object? obj)
+    {
+        if (false == obj is PdfsValue other) return false;
+        if (Kind != other.Kind) return false;
+
+        return Kind switch
+        {
+            PdfsValueKind.Number => _numberValue == other._numberValue,
+            PdfsValueKind.Boolean => _booleanValue == other._booleanValue,
+            PdfsValueKind.String => _stringValue == other._stringValue,
+            PdfsValueKind.Name => _stringValue == other._stringValue,
+            PdfsValueKind.Variable => _stringValue == other._stringValue,
+            PdfsValueKind.Keyword => _stringValue == other._stringValue,
+            PdfsValueKind.Dictionary => _dictionaryValue == other._dictionaryValue,
+            PdfsValueKind.Array => _arrayValue == other._arrayValue,
+            _ => throw new InvalidOperationException("Value is not a string, name, keyword or variable."),
+        };
+
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(Kind, _booleanValue, _numberValue, _stringValue, _dictionaryValue, _arrayValue);
+    }
+
+    public override string ToString()
+    {
+        return Kind switch
+        {
+            PdfsValueKind.Number => _numberValue.ToString(),
+            PdfsValueKind.String => _stringValue!,
+            PdfsValueKind.Boolean => _booleanValue.ToString(),
+            PdfsValueKind.Name => _stringValue!,
+            PdfsValueKind.Variable => _stringValue!,
+            PdfsValueKind.Keyword => _stringValue!,
+            PdfsValueKind.Dictionary => "{Dictionary}",
+            PdfsValueKind.Array => "{Array}",
+            _ => throw new InvalidOperationException("Value is not a string, name, keyword or variable."),
+        };
+    }
+
 
     // Public methods
     // ==============

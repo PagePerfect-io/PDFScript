@@ -212,7 +212,33 @@ public class PdfsReaderTests
             await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
         }
     }
+    #endregion
 
+    #region Reading Graphics instructions - general graphics state
+    /// <summary>
+    /// The PdfsReader should read "q" and "Q" operations, which preserve and restore
+    /// the graphics state, respectively.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadPreserveAndRestoreStateOperations()
+    {
+        using var stream = S("q Q");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.q, op.Operator);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Q, op.Operator);
+    }
     #endregion
 
 

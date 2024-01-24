@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using PagePerfect.PdfScript.Reader.Statements.Prolog;
 
 namespace PagePerfect.PdfScript.Reader.Statements;
@@ -122,7 +121,6 @@ public abstract class PrologStatement(PrologStatementType type) : PdfsStatement(
     /// </summary>
     /// <param name="lexer">The lexer to read tokens from.</param>
     /// <returns>The ResourceDeclaration instance.</returns>
-
     private static async Task<PrologStatement> ParseResourceDeclaration(PdfsLexer lexer)
     {
         // Read the resource name.
