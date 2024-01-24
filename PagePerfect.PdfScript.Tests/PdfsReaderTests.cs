@@ -214,7 +214,7 @@ public class PdfsReaderTests
     }
     #endregion
 
-    #region Reading Graphics instructions - general graphics state
+    #region Reading Graphics instructions - special graphics state
     /// <summary>
     /// The PdfsReader should read "q" and "Q" operations, which preserve and restore
     /// the graphics state, respectively.

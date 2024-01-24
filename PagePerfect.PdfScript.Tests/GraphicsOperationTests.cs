@@ -18,11 +18,11 @@ public class GraphicsOperationTests
     [Fact]
     public void ShouldParseGraphicsOperationWithoutOperands()
     {
-        var op = GraphicsOperation.Parse("m", []);
+        var op = GraphicsOperation.Parse("q", []);
         Assert.NotNull(op);
-        Assert.Equal(Operator.m, op.Operator);
+        Assert.Equal(Operator.q, op.Operator);
         Assert.Empty(op.Operands);
-        Assert.Equal("m", op.GetOperatorName());
+        Assert.Equal("q", op.GetOperatorName());
     }
 
     /// <summary>
