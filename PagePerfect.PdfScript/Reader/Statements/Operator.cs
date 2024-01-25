@@ -39,17 +39,20 @@ public enum Operator
     M,
 
     /// The d operator - PDF1-7, p. 196 - set the line dash pattern.
+    [GraphicsOperation(PdfsValueKind.Array, PdfsValueKind.Number)]
     d,
 
     /// The ri operator - PDF1-7, p. 196 - set the rendering intent.
-    [GraphicsOperation(PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Name)]
     ri,
 
     /// The i operator - PDF1-7, p. 196 - set the flatness tolerance.
+    [GraphicsOperation(PdfsValueKind.Number)]
     i,
 
     /// The gs operator (PDF1-7, p.219) - Injects the graphics state
     /// located by the resource indicated in the operand.
+    [GraphicsOperation(PdfsValueKind.Name)]
     gs,
 
 
@@ -63,10 +66,14 @@ public enum Operator
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number)]
     l,
     /// The c operator (PDF1-7, p.226) - appends a bezier curve
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     c,
+
     /// The v operator (PDF1-7, p.226) - appends a bezier curve
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     v,
     /// The y operator (PDF1-7, p.226) - appends a bezier curve
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     y,
     /// The h operator (PDF1-7, p.226) - closes a path
     h,
@@ -127,7 +134,7 @@ public enum Operator
     TL,
 
     /// The Tf operator (PDF1-7, p.398) - font name and font size.
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name)]
+    [GraphicsOperation(PdfsValueKind.Name, PdfsValueKind.Number)]
     Tf,
 
     /// The Tr operator (PDF1-7, p.398) - text rendering mode.

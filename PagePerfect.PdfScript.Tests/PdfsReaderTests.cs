@@ -239,6 +239,539 @@ public class PdfsReaderTests
         op = (GraphicsOperation)reader.Statement;
         Assert.Equal(Operator.Q, op.Operator);
     }
+
+    /// <summary>
+    /// The PdfsReader should read "cm" operations, which set the current transformation
+    /// matrix.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetCTMOperation()
+    {
+        using var stream = S("1 0 0 1 10 20 cm");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.cm, op.Operator);
+        Assert.Equal(6, op.Operands.Length);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+        Assert.Equal(new PdfsValue(0), op.Operands[1]);
+        Assert.Equal(new PdfsValue(0), op.Operands[2]);
+        Assert.Equal(new PdfsValue(1), op.Operands[3]);
+        Assert.Equal(new PdfsValue(10), op.Operands[4]);
+        Assert.Equal(new PdfsValue(20), op.Operands[5]);
+    }
+    #endregion
+
+    #region Reading Graphics instructions - general graphics instructions
+    /// <summary>
+    /// The PdfsReader class should read operations that set the line width,
+    /// join style, miter limit, and line cap style.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadLineStyleOperations()
+    {
+        using var stream = S("10 w 1 J 1 j 10 M");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.w, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(10), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.J, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.j, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.M, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(10), op.Operands[0]);
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read a "d" operation that sets the current
+    /// dash pattern.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadLineDashPatternOperation()
+    {
+        using var stream = S("[1 2 3 4] 5 d");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.d, op.Operator);
+        Assert.Equal(2, op.Operands.Length);
+        Assert.Equal(new PdfsValue(5), op.Operands[1]);
+        Assert.Equal(PdfsValueKind.Array, op.Operands[0].Kind);
+        var array = op.Operands[0].GetArray();
+        Assert.Equal(4, array.Length);
+        Assert.Equal(new PdfsValue(1), array[0]);
+        Assert.Equal(new PdfsValue(2), array[1]);
+        Assert.Equal(new PdfsValue(3), array[2]);
+        Assert.Equal(new PdfsValue(4), array[3]);
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read an "ri" operation that sets the
+    /// rendering intent.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadRenderingIntentOperation()
+    {
+        using var stream = S("/AbsoluteColormetric ri");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.ri, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue("/AbsoluteColormetric", PdfsValueKind.Name), op.Operands[0]);
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "i" operation that sets the
+    /// flatness tolerance.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadFlatnessToleranceOperation()
+    {
+        using var stream = S("10 i");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.i, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(10), op.Operands[0]);
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "gs" operation that injects
+    /// a graphics state.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadGraphicsStateOperation()
+    {
+        using var stream = S("/MyState gs");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.gs, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue("/MyState", PdfsValueKind.Name), op.Operands[0]);
+    }
+    #endregion
+
+    #region Reading Graphics instructions - path construction instructions
+    [Fact]
+    public async Task ShouldReadMoveToOperation()
+    {
+        using var stream = S("10 20 m");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.m, op.Operator);
+        Assert.Equal(2, op.Operands.Length);
+        Assert.Equal(new PdfsValue(10), op.Operands[0]);
+        Assert.Equal(new PdfsValue(20), op.Operands[1]);
+    }
+
+    [Fact]
+    public async Task ShouldReadLineToOperation()
+    {
+        using var stream = S("100 20 l");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.l, op.Operator);
+        Assert.Equal(2, op.Operands.Length);
+        Assert.Equal(new PdfsValue(100), op.Operands[0]);
+        Assert.Equal(new PdfsValue(20), op.Operands[1]);
+    }
+
+    [Fact]
+    public async Task ShouldReadCubicBezierCurveOperations()
+    {
+        using (var stream = S("100 100 150 100 150 20 c"))
+        {
+            var reader = new PdfsReader(stream);
+            Assert.True(await reader.Read());
+            Assert.NotNull(reader.Statement);
+            Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+            Assert.IsType<GraphicsOperation>(reader.Statement);
+            var op = (GraphicsOperation)reader.Statement;
+            Assert.Equal(Operator.c, op.Operator);
+            Assert.Equal(6, op.Operands.Length);
+            Assert.Equal(new PdfsValue(100), op.Operands[0]);
+            Assert.Equal(new PdfsValue(100), op.Operands[1]);
+            Assert.Equal(new PdfsValue(150), op.Operands[2]);
+            Assert.Equal(new PdfsValue(100), op.Operands[3]);
+            Assert.Equal(new PdfsValue(150), op.Operands[4]);
+            Assert.Equal(new PdfsValue(20), op.Operands[5]);
+        }
+        using (var stream = S("125 100 150 20 v"))
+        {
+
+            var reader = new PdfsReader(stream);
+            Assert.True(await reader.Read());
+            Assert.NotNull(reader.Statement);
+            Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+            Assert.IsType<GraphicsOperation>(reader.Statement);
+            var op = (GraphicsOperation)reader.Statement;
+            Assert.Equal(Operator.v, op.Operator);
+            Assert.Equal(4, op.Operands.Length);
+            Assert.Equal(new PdfsValue(125), op.Operands[0]);
+            Assert.Equal(new PdfsValue(100), op.Operands[1]);
+            Assert.Equal(new PdfsValue(150), op.Operands[2]);
+            Assert.Equal(new PdfsValue(20), op.Operands[3]);
+        }
+
+        using (var stream = S("125 100 150 20 y"))
+        {
+
+            var reader = new PdfsReader(stream);
+            Assert.True(await reader.Read());
+            Assert.NotNull(reader.Statement);
+            Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+            Assert.IsType<GraphicsOperation>(reader.Statement);
+            var op = (GraphicsOperation)reader.Statement;
+            Assert.Equal(Operator.y, op.Operator);
+            Assert.Equal(4, op.Operands.Length);
+            Assert.Equal(new PdfsValue(125), op.Operands[0]);
+            Assert.Equal(new PdfsValue(100), op.Operands[1]);
+            Assert.Equal(new PdfsValue(150), op.Operands[2]);
+            Assert.Equal(new PdfsValue(20), op.Operands[3]);
+        }
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read a close-path operation.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadClosePathOperation()
+    {
+        using var stream = S("h");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.h, op.Operator);
+        Assert.Empty(op.Operands);
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read a rectangle operation.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadRectangleOperation()
+    {
+        using var stream = S("10 20 100 50 re");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.re, op.Operator);
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(new PdfsValue(10), op.Operands[0]);
+        Assert.Equal(new PdfsValue(20), op.Operands[1]);
+        Assert.Equal(new PdfsValue(100), op.Operands[2]);
+        Assert.Equal(new PdfsValue(50), op.Operands[3]);
+    }
+    #endregion
+
+    #region Reading Graphics instructions - path painting instructions
+    /// <summary>
+    /// The PdfsReader class should read stroking and filling operations.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadPathPaintingOperations()
+    {
+        using var stream = S("s S f F f* B B* b b* n");
+
+        var reader = new PdfsReader(stream);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.s, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.S, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.f, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.F, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.fStar, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.B, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.BStar, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.b, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.bStar, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.n, op.Operator);
+        Assert.Empty(op.Operands);
+
+    }
+
+    #endregion
+
+    #region Reading Graphics instructions - clipping path instructions
+    [Fact]
+    /// <summary>
+    /// The PdfsReader should read the "W" and "W*" operations, which modify the clipping path.
+    /// </summary>
+    public async Task ShouldReadClippingPathOperations()
+    {
+        using var stream = S("W W*");
+
+        var reader = new PdfsReader(stream);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.W, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.WStar, op.Operator);
+        Assert.Empty(op.Operands);
+    }
+    #endregion
+
+    #region Reading Graphics instructions - text object instructions
+    /// <summary>
+    /// The PdfsReader should read the "BT" and "ET" operations, which start and end a text block.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadTextObjectOperations()
+    {
+        using var stream = S("BT ET");
+
+        var reader = new PdfsReader(stream);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.BT, op.Operator);
+        Assert.Empty(op.Operands);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.ET, op.Operator);
+        Assert.Empty(op.Operands);
+    }
+    #endregion
+
+    #region Text state instructions
+    /// <summary>
+    /// The PdfsReader class should read text state operations that set the character
+    /// spacing, word spacing, text ratio, text leading, font name and font size.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadTextStateInstructions()
+    {
+        using var stream = S("12 Tc 0 Tw 100 Tz -2 TL 0 Tr 3 Ts");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Tc, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(12), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Tw, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(0), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Tz, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(100), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.TL, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(-2), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Tr, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(0), op.Operands[0]);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Ts, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(3), op.Operands[0]);
+    }
+
+    /// <summary>
+    /// The PdfsReader should be able to read the "Tf" operation, which sets the font
+    /// name and font size. 
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetFontNameAndSizeOperation()
+    {
+        using var stream = S("/TimesRoman 12 Tf");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Tf, op.Operator);
+        Assert.Equal(2, op.Operands.Length);
+        Assert.Equal(new PdfsValue("/TimesRoman", PdfsValueKind.Name), op.Operands[0]);
+        Assert.Equal(new PdfsValue(12), op.Operands[1]);
+    }
     #endregion
 
 
