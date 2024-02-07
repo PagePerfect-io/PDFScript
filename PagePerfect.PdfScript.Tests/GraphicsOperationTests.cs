@@ -37,17 +37,11 @@ public class GraphicsOperationTests
         Assert.Empty(op.Operands);
         Assert.Equal("f*", op.GetOperatorName());
 
-        op = GraphicsOperation.Parse("'", []);
+        op = GraphicsOperation.Parse("T*", []);
         Assert.NotNull(op);
-        Assert.Equal(Operator.Apos, op.Operator);
+        Assert.Equal(Operator.TStar, op.Operator);
         Assert.Empty(op.Operands);
-        Assert.Equal("'", op.GetOperatorName());
-
-        op = GraphicsOperation.Parse("\"", []);
-        Assert.NotNull(op);
-        Assert.Equal(Operator.Quot, op.Operator);
-        Assert.Empty(op.Operands);
-        Assert.Equal("\"", op.GetOperatorName());
+        Assert.Equal("T*", op.GetOperatorName());
     }
 
     /// <summary>
@@ -110,6 +104,86 @@ public class GraphicsOperationTests
         operands.Push(new PdfsValue(0));
         operands.Push(new PdfsValue(1));
         Assert.Throws<PdfsReaderException>(() => GraphicsOperation.Parse("cm", operands));
+    }
+
+    /// <summary>
+    /// The GraphicsOperation class should parse an operation with multiple operand
+    /// options - examples are sc, SC, scn, SCN.
+    /// </summary>
+    [Fact]
+    public void ShouldParseGraphicsOperationWithMultipleOperandOptions()
+    {
+        // sc with one operand
+        var operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        var op = GraphicsOperation.Parse("sc", operands);
+        Assert.NotNull(op);
+        Assert.Equal(Operator.sc, op.Operator);
+        Assert.Equal("sc", op.GetOperatorName());
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+
+        // scn with one operand
+        operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        op = GraphicsOperation.Parse("scn", operands);
+        Assert.NotNull(op);
+        Assert.Equal(Operator.scn, op.Operator);
+        Assert.Equal("scn", op.GetOperatorName());
+        Assert.Single(op.Operands);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+
+        // scn with four operands - three numbers and a name
+        operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        operands.Push(new PdfsValue(0.9f));
+        operands.Push(new PdfsValue(0.8f));
+        operands.Push(new PdfsValue("Edwin", PdfsValueKind.Name));
+        op = GraphicsOperation.Parse("scn", operands);
+        Assert.NotNull(op);
+        Assert.Equal(Operator.scn, op.Operator);
+        Assert.Equal("scn", op.GetOperatorName());
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+        Assert.Equal(new PdfsValue(0.9f), op.Operands[1]);
+        Assert.Equal(new PdfsValue(0.8f), op.Operands[2]);
+        Assert.Equal(new PdfsValue("Edwin", PdfsValueKind.Name), op.Operands[3]);
+
+        // scn with four operands - four numbers
+        operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        operands.Push(new PdfsValue(0.9f));
+        operands.Push(new PdfsValue(0.8f));
+        operands.Push(new PdfsValue(0.7f));
+        op = GraphicsOperation.Parse("scn", operands);
+        Assert.NotNull(op);
+        Assert.Equal(Operator.scn, op.Operator);
+        Assert.Equal("scn", op.GetOperatorName());
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+        Assert.Equal(new PdfsValue(0.9f), op.Operands[1]);
+        Assert.Equal(new PdfsValue(0.8f), op.Operands[2]);
+        Assert.Equal(new PdfsValue(0.7f), op.Operands[3]);
+    }
+
+    /// <summary>
+    /// The GraphicsOperation class should throw an exception when parsing an operation
+    /// with multiple options for operands, when the operands do not match any of the
+    /// options. 
+    /// </summary>
+    [Fact]
+    public void ShouldThrowWhenNoMatchFoundForOperatorWithMultipleOperandOptions()
+    {
+        // Wrong type
+        var operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        operands.Push(new PdfsValue(0.9f));
+        operands.Push(new PdfsValue("Edwin", PdfsValueKind.String));
+        Assert.Throws<PdfsReaderException>(() => GraphicsOperation.Parse("scn", operands));
+
+        // No match for an operation with no operands
+        operands = new Stack<PdfsValue>();
+        Assert.Throws<PdfsReaderException>(() => GraphicsOperation.Parse("scn", operands));
     }
     #endregion
 

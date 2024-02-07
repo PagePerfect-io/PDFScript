@@ -25,5 +25,24 @@ public static class EnumExtensions
         var attr = Attribute.GetCustomAttribute(field, typeof(T), false);
         return null == attr ? null : (T)attr;
     }
+
+    /// <summary>
+    /// Retrieves the attributes for an enumerated value.
+    /// This method finds the attributes of the specified type, as they are applied to the
+    /// specified enumerated value, and returns them.
+    /// </summary>
+    /// <typeparam name="T">The type parameter.</typeparam>
+    /// <param name="value">The enumerated value.</param>
+    /// <returns>The attribute instances.</returns>
+    public static T[] GetAttributes<T>(this Enum value) where T : Attribute
+    {
+        var type = value.GetType();
+        var field = type.GetField(value.ToString());
+        if (null == field) throw new ArgumentException($"The specified value '{value}' is not a valid value for the {type.Name} enumeration.");
+
+        var attrs = Attribute.GetCustomAttributes(field, typeof(T), false);
+        return (T[])attrs;
+    }
+
     #endregion
 }

@@ -7,7 +7,7 @@ namespace PagePerfect.PdfScript.Reader.Statements;
 /// between the enumerated values and the operator names, where they are not the same
 /// </summary>
 /// <param name="operands">The operands</param>
-[AttributeUsage(AttributeTargets.Field)]
+[AttributeUsage(AttributeTargets.Field, AllowMultiple = true)]
 public class GraphicsOperationAttribute(params PdfsValueKind[] operands) : Attribute
 {
     // Public properties

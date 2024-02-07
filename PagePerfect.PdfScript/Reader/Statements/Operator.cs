@@ -152,9 +152,14 @@ public enum Operator
     ET,
 
     /// The Td operator (PDF1-7, p.406) - moves to the start of a new line.
-    Td, TD,
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number)]
+    Td,
+
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number)]
+    TD,
 
     /// The Tm operator (PDF1-7, p.406) - sets the text matrix and text line matrix.
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     Tm,
 
     /// The T* operator (PDF1-7, p.407) - moves to the next time.
@@ -166,14 +171,15 @@ public enum Operator
     Tj,
 
     /// The TJ operator (PDF1-7, p.408) - shows text with glyph displacements.
+    [GraphicsOperation(PdfsValueKind.Array)]
     TJ,
 
     /// The apostrophe operator (PDF1-7, p.407) - shows text.
-    [GraphicsOperation(Operator = "'")]
+    [GraphicsOperation(PdfsValueKind.String, Operator = "'")]
     Apos,
 
     /// The double-quote operator (PDF1-7, p.407) - shows text.
-    [GraphicsOperation(Operator = "\"")]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.String, Operator = "\"")]
     Quot,
 
 
@@ -181,21 +187,41 @@ public enum Operator
     // Color instructions
     // ==================
     /// The CS operator - PDF1-7, p.196 - set the colour space.
+    [GraphicsOperation(PdfsValueKind.Name)]
     CS,
 
     /// The cs operator - PDF1-7, p.196 - set the colour space.
+    [GraphicsOperation(PdfsValueKind.Name)]
     cs,
 
     /// The SC operator - PDF1-7, p.196 - set the colour based on current colour space.
+    [GraphicsOperation(PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     SC,
 
     /// The sc operator - PDF1-7, p.196 - set the colour based on current colour space.
+    [GraphicsOperation(PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     sc,
 
     /// The SCN operator - PDF1-7, p.196 - set the colour based on current colour space.
+    [GraphicsOperation(PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
     SCN,
 
     /// The scn operator - PDF1-7, p.196 - set the colour based on current colour space.
+    [GraphicsOperation(PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
     scn,
 
     /// The G operator - PDF1-7, p.196 - set a gray colour.

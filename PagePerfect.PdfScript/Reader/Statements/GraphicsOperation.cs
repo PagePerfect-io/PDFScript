@@ -18,7 +18,7 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
     /// </summary>
     private static readonly Dictionary<string, Operator> _operatorSymbols;
     private static readonly Dictionary<Operator, string> _operatorNames;
-    private static readonly Dictionary<Operator, PdfsValueKind[]> _operatorOperands;
+    private static readonly Dictionary<Operator, PdfsValueKind[][]> _operatorOperands;
     #endregion
 
 
@@ -116,9 +116,92 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
         if (!_operatorSymbols.TryGetValue(op, out var @operator))
             throw new PdfsReaderException($"Invalid operator '{op}'.");
 
-        // Get the expected operands for this operator.
+        // Retrieve the options for operands. If there is just the one option, we can
+        // parse the operands immediately. If there are multiple options, we try to find
+        // a match first, and then base operands on the match.
+        var options = _operatorOperands[@operator];
+        if (options.Length == 0) return new GraphicsOperation(@operator, []);
+        if (options.Length == 1) return TryParseOperands(@operator, operandStack, options[0]);
+
+        // Try to find a match for the operands.
+        var match = TryFindOperandMatch(operandStack, options);
+        if (null == match) throw new PdfsReaderException($"No match found for operands of operator '{op}'.");
+
+        // Parse the operands.
         var operands = new Stack<PdfsValue>();
-        var expectedOperands = _operatorOperands[@operator];
+        foreach (var expected in match)
+        {
+            var operand = operandStack.Pop();
+            operands.Push(operand);
+
+        }
+
+        return new GraphicsOperation(@operator, [.. operands]);
+    }
+    #endregion
+
+
+
+    // Private implementation
+    // ======================
+    #region Private implementation
+    /// <summary>
+    /// Creates the dictionaries that map operator names to symbols and vice versa,
+    /// and list types for their operands.
+    /// </summary>
+    private static void CreateOperatorLookups()
+    {
+        foreach (var op in Enum.GetValues<Operator>())
+        {
+            var attr = op.GetAttributes<GraphicsOperationAttribute>();
+            if (attr.Length == 0)
+            {
+                _operatorNames.Add(op, op.ToString());
+                _operatorSymbols.Add(op.ToString(), op);
+                _operatorOperands.Add(op, []);
+                continue;
+            }
+
+            // Pick the name based on the first attribute's operator name, if available.
+            var name = attr[0].Operator ?? op.ToString();
+            _operatorNames.Add(op, name);
+            _operatorSymbols.Add(name, op);
+
+            var options = attr
+                .Select(a => a.Operands.Reverse().ToArray())
+                .OrderByDescending(a => a.Length)
+                .ToArray();
+
+            _operatorOperands.Add(op, options);
+        }
+    }
+
+    private static PdfsValueKind[]? TryFindOperandMatch(
+        Stack<PdfsValue> operandStack,
+        PdfsValueKind[][] options)
+    {
+        var copy = operandStack.ToArray();
+
+        foreach (var option in options)
+        {
+            if (copy.Length < option.Length) continue;
+
+            int n;
+            for (n = 0; n < option.Length; n++)
+            {
+                if (copy[n].Kind != option[n]) break;
+            }
+            if (n == option.Length) return option;
+        }
+        return null;
+    }
+
+    private static GraphicsOperation TryParseOperands(
+        Operator @operator,
+        Stack<PdfsValue> operandStack,
+        PdfsValueKind[] expectedOperands)
+    {
+        var operands = new Stack<PdfsValue>();
         foreach (var expected in expectedOperands)
         {
             if (operandStack.Count == 0)
@@ -139,29 +222,6 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
         }
 
         return new GraphicsOperation(@operator, [.. operands]);
-    }
-    #endregion
-
-
-
-    // Private implementation
-    // ======================
-    #region Private implementation
-    /// <summary>
-    /// Creates the dictionaries that map operator names to symbols and vice versa,
-    /// and list types for their operands.
-    /// </summary>
-    private static void CreateOperatorLookups()
-    {
-        foreach (var op in Enum.GetValues<Operator>())
-        {
-            var attr = op.GetAttribute<GraphicsOperationAttribute>();
-            var name = attr?.Operator ?? op.ToString();
-
-            _operatorNames.Add(op, name);
-            _operatorSymbols.Add(name, op);
-            _operatorOperands.Add(op, attr?.Operands.Reverse().ToArray() ?? []);
-        }
     }
     #endregion
 }
