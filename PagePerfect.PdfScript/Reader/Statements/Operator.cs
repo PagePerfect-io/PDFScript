@@ -210,6 +210,7 @@ public enum Operator
     [GraphicsOperation(PdfsValueKind.Number)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Name)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
@@ -219,6 +220,7 @@ public enum Operator
     [GraphicsOperation(PdfsValueKind.Number)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number)]
+    [GraphicsOperation(PdfsValueKind.Name)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name)]
@@ -253,6 +255,7 @@ public enum Operator
     // Shading instructions
     // ====================
     /// The sh operator - PDF1-7, p.196 - paints a shading pattern.
+    [GraphicsOperation(PdfsValueKind.Name)]
     sh,
 
 

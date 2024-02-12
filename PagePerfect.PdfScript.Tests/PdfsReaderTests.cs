@@ -919,6 +919,321 @@ public class PdfsReaderTests
 
 
     #region Reading Graphics instructions - Color
+    /// <summary>
+    /// The PdfsReader class should read the "cs" and "CS" operations, which set a colour space.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadColourSpaceOperations()
+    {
+        using var stream = S("/DeviceRGB cs /DeviceCMYK CS");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.cs, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Name, op.Operands[0].Kind);
+        Assert.Equal("/DeviceRGB", op.Operands[0].GetString());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.CS, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Name, op.Operands[0].Kind);
+        Assert.Equal("/DeviceCMYK", op.Operands[0].GetString());
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "sc" and "SC" operations, which set a colour
+    /// in the current colour space.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetColourOperations()
+    {
+        using var stream = S("0.5 sc 1 0 0 sc 0 1 0.2 0.4 SC");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.sc, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.5f, op.Operands[0].GetNumber());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.sc, op.Operator);
+        Assert.Equal(3, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(1, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(0, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0, op.Operands[2].GetNumber());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.SC, op.Operator);
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(1, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0.2f, op.Operands[2].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[3].Kind);
+        Assert.Equal(0.4f, op.Operands[3].GetNumber());
+
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "scn" and "SCN" operations, which set a colour
+    /// in the current colour space and support pattern colour spaces.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetColourNewOperations()
+    {
+        using var stream = S("0.5 /X scn 1 0 0 /X scn 0 1 0.2 0.4 /X SCN /X SCN");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.scn, op.Operator);
+        Assert.Equal(2, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.5f, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Name, op.Operands[1].Kind);
+        Assert.Equal("/X", op.Operands[1].GetString());
+
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.scn, op.Operator);
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(1, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(0, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0, op.Operands[2].GetNumber());
+        Assert.Equal(PdfsValueKind.Name, op.Operands[3].Kind);
+        Assert.Equal("/X", op.Operands[3].GetString());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.SCN, op.Operator);
+        Assert.Equal(5, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(1, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0.2f, op.Operands[2].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[3].Kind);
+        Assert.Equal(0.4f, op.Operands[3].GetNumber());
+        Assert.Equal(PdfsValueKind.Name, op.Operands[4].Kind);
+        Assert.Equal("/X", op.Operands[4].GetString());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.SCN, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Name, op.Operands[0].Kind);
+        Assert.Equal("/X", op.Operands[0].GetString());
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "g" and "G" operations, which set a colour
+    /// in the DeviceGray colour space.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetGrayColourOperations()
+    {
+        using var stream = S("0.5 g 0.7 G");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.g, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.5f, op.Operands[0].GetNumber());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.G, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.7f, op.Operands[0].GetNumber());
+
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "rg" and "RG" operations, which set a colour
+    /// in the DeviceRGB colour space.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetRGBColourOperations()
+    {
+        using var stream = S("0.5 0.6 0.7 rg 0.7 0.8 0.9 RG");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.rg, op.Operator);
+        Assert.Equal(3, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.5f, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(0.6f, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0.7f, op.Operands[2].GetNumber());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.RG, op.Operator);
+        Assert.Equal(3, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.7f, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(0.8f, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0.9f, op.Operands[2].GetNumber());
+    }
+
+    /// <summary>
+    /// The PdfsReader class should read the "k" and "K" operations, which set a colour
+    /// in the DeviceCMYK colour space.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadSetCMYKColourOperations()
+    {
+        using var stream = S("0.5 0.6 0.7 1 k 0.7 0.8 0.9 1 K");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.k, op.Operator);
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.5f, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(0.6f, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0.7f, op.Operands[2].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[3].Kind);
+        Assert.Equal(1f, op.Operands[3].GetNumber());
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.K, op.Operator);
+        Assert.Equal(4, op.Operands.Length);
+        Assert.Equal(PdfsValueKind.Number, op.Operands[0].Kind);
+        Assert.Equal(0.7f, op.Operands[0].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[1].Kind);
+        Assert.Equal(0.8f, op.Operands[1].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[2].Kind);
+        Assert.Equal(0.9f, op.Operands[2].GetNumber());
+        Assert.Equal(PdfsValueKind.Number, op.Operands[3].Kind);
+        Assert.Equal(1f, op.Operands[3].GetNumber());
+    }
+    #endregion
+
+
+
+    #region Reading Graphics instructions - Shading pattern
+    /// <summary>
+    /// The PdfsReader class should read the "sh" operation, which paints a
+    /// shading and color object.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadShadingPatternOperations()
+    {
+        using var stream = S("/Pattern sh");
+
+        var reader = new PdfsReader(stream);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.sh, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Name, op.Operands[0].Kind);
+        Assert.Equal("/Pattern", op.Operands[0].GetString());
+    }
+    #endregion
+
+
+
+    #region Reading Graphics instructions - Place object
+    /// <summary>
+    /// The PdfsReader class should read the "Do" operation, which places
+    /// an object onto the page, such as an image or a form.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadPlaceObjectOperation()
+    {
+        using var stream = S("/Img1 Do");
+
+        var reader = new PdfsReader(stream);
+
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.GraphicsOperation, reader.Statement.Type);
+        Assert.IsType<GraphicsOperation>(reader.Statement);
+        var op = (GraphicsOperation)reader.Statement;
+        Assert.Equal(Operator.Do, op.Operator);
+        Assert.Single(op.Operands);
+        Assert.Equal(PdfsValueKind.Name, op.Operands[0].Kind);
+        Assert.Equal("/Img1", op.Operands[0].GetString());
+    }
     #endregion
 
 
