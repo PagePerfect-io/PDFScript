@@ -84,6 +84,9 @@ public class PdfsProcessorTests
     }
     #endregion
 
+    #region Prolog statements
+    #endregion
+
     #region Variables
     /// <summary>
     /// The processor should throw an exception when a variable is declared multiple times.
@@ -128,6 +131,18 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteRawContent("f\r\n");
     }
 
+    #endregion
+
+    #region Images and the Do operator
+    #endregion
+
+    #region Text and standard fonts
+    #endregion
+
+    #region Fonts
+    #endregion
+
+    #region Unicode text
     #endregion
 
     #region Real world examples

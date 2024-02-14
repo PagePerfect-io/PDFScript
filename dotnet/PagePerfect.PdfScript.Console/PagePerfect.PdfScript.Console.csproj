@@ -7,4 +7,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\PagePerfect.PdfScript\PagePerfect.PdfScript.csproj" />
+  </ItemGroup>
 </Project>

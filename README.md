@@ -214,7 +214,7 @@ Examples of logical operators are `eq`, `lt`, `lte`, `gt`, `gte`, `not`.
 Use the `pdfs` CLI to process PDFScript from the command-line:
 
 ```
-pdfs document.pdfs output.pdf
+pdfs run document.pdfs output.pdf
 ```
 
 Or use the .NET NuGet package to create PDFs from your .net project.
@@ -235,7 +235,7 @@ doc.SaveAs(“Output.pdf”);
 To pass variables into a script using the CLI, use the `—var` switch.
 
 ```
-pdfs --var $text (Hello, World!) document.pdfs output.pdf
+pdfs run --var $text /String (Hello, World!) document.pdfs output.pdf
 ```
 
 To pass variables into a script using the .net API, use the override of the Document initialiser:
