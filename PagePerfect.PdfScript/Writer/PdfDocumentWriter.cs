@@ -1,3 +1,5 @@
+using PagePerfect.PdfScript.Reader;
+
 namespace PagePerfect.PdfScript.Writer;
 
 /// <summary>
@@ -328,6 +330,52 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     public async Task WriteRawContent(string content)
     {
         await _writer.WriteAsync(content);
+    }
+
+    /// <summary>
+    /// Writes the specified PdfsValue to the current content stream.
+    /// This is used by the processor to write graphics instructions to the output stream.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public async Task WriteValue(PdfsValue value)
+    {
+        switch (value.Kind)
+        {
+            case PdfsValueKind.Boolean:
+            case PdfsValueKind.Name:
+            case PdfsValueKind.Number:
+            case PdfsValueKind.Keyword:
+                await _writer.WriteAsync(value.ToString());
+                break;
+
+            case PdfsValueKind.String:
+                await _writer.WriteAsync($"({value.GetString()})");
+                break;
+
+            case PdfsValueKind.Array:
+                await _writer.WriteAsync("[");
+                foreach (var v in value.GetArray())
+                {
+                    await WriteValue(v);
+                    await _writer.WriteAsync(" ");
+                }
+                await _writer.WriteAsync("]");
+                break;
+
+            case PdfsValueKind.Dictionary:
+                await _writer.WriteAsync("<<");
+                foreach (var kv in value.GetDictionary())
+                {
+                    await _writer.WriteAsync($"/{kv.Key} ");
+                    await WriteValue(kv.Value);
+                    await _writer.WriteAsync(" ");
+                }
+                await _writer.WriteAsync(">>");
+                break;
+
+            default:
+                throw new PdfDocumentWriterException($"Invalid value kind: {value.Kind}");
+        }
     }
     #endregion
 

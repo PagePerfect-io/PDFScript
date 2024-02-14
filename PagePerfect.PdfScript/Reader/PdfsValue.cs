@@ -1,5 +1,3 @@
-using Microsoft.VisualBasic;
-
 namespace PagePerfect.PdfScript.Reader;
 
 /// <summary>
@@ -105,6 +103,10 @@ public class PdfsValue
     #endregion
 
 
+
+    // Base class overrides
+    // ====================
+    #region Base class overrides
     public override bool Equals(object? obj)
     {
         if (false == obj is PdfsValue other) return false;
@@ -145,6 +147,8 @@ public class PdfsValue
             _ => throw new InvalidOperationException("Value is not a string, name, keyword or variable."),
         };
     }
+    #endregion
+
 
 
     // Public methods

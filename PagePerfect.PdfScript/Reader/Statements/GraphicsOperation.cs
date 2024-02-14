@@ -189,7 +189,13 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
             int n;
             for (n = 0; n < option.Length; n++)
             {
-                if (copy[n].Kind != option[n]) break;
+                var kind = copy[n].Kind;
+                if (kind == PdfsValueKind.Variable)
+                {
+                    var resolved = copy[n] as TypeResolvedVariable;
+                    kind = resolved!.ResolvedDatatype;
+                }
+                if (kind != option[n]) break;
             }
             if (n == option.Length) return option;
         }
@@ -210,15 +216,15 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
             var operand = operandStack.Pop();
             if (operand.Kind == PdfsValueKind.Variable)
             {
-                throw new NotImplementedException();
+                var resolved = operand as TypeResolvedVariable;
+                if (resolved!.ResolvedDatatype != expected)
+                    throw new PdfsReaderException($"Expected operand of type '{expected}', but found a variable of type '{resolved.ResolvedDatatype}'.");
             }
-            else
-            {
-                if (operand.Kind != expected)
-                    throw new PdfsReaderException($"Expected operand of type '{expected}', but found '{operand.Kind}'.");
+            else if (operand.Kind != expected)
+                throw new PdfsReaderException($"Expected operand of type '{expected}', but found '{operand.Kind}'.");
 
-                operands.Push(operand);
-            }
+            operands.Push(operand);
+
         }
 
         return new GraphicsOperation(@operator, [.. operands]);

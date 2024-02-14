@@ -185,6 +185,41 @@ public class GraphicsOperationTests
         operands = new Stack<PdfsValue>();
         Assert.Throws<PdfsReaderException>(() => GraphicsOperation.Parse("scn", operands));
     }
+
+    /// <summary>
+    /// Te GraphicsOperation class should parse an operation where one or more operands
+    /// are type-resolved variables.
+    [Fact]
+    public void ShouldParseOperationWithVariableOperands()
+    {
+        // rg with three operands - one is a variable
+        var operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        operands.Push(new TypeResolvedVariable("g", PdfsValueKind.Number));
+        operands.Push(new PdfsValue(0.8f));
+
+        var op = GraphicsOperation.Parse("rg", operands);
+        Assert.NotNull(op);
+        Assert.Equal(Operator.rg, op.Operator);
+        Assert.Equal("rg", op.GetOperatorName());
+        Assert.Equal(3, op.Operands.Length);
+        Assert.Equal(new PdfsValue(1), op.Operands[0]);
+        Assert.Equal(new PdfsValue(0.8f), op.Operands[2]);
+    }
+
+    /// <summary>
+    /// Te GraphicsOperation class should throw an exception when an
+    /// operand is a type-resolved variable that has an incorrect datatype.
+    [Fact]
+    public void ShouldThrowWhenVariableTypeIncorrect()
+    {
+        // rg with three operands - one is a variable with incorrext type
+        var operands = new Stack<PdfsValue>();
+        operands.Push(new PdfsValue(1));
+        operands.Push(new TypeResolvedVariable("g", PdfsValueKind.Name));
+        operands.Push(new PdfsValue(0.8f));
+        Assert.Throws<PdfsReaderException>(() => GraphicsOperation.Parse("rg", operands));
+    }
     #endregion
 
 

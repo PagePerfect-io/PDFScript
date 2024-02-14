@@ -1,3 +1,5 @@
+using PagePerfect.PdfScript.Reader;
+
 namespace PagePerfect.PdfScript.Writer;
 
 /// <summary>
@@ -115,5 +117,12 @@ public interface IPdfDocumentWriter
     /// </summary>
     /// <param name="content">The content</param>
     public Task WriteRawContent(string content);
+
+    /// <summary>
+    /// Writes the specified PdfsValue to the current content stream.
+    /// This is used by the processor to write graphics instructions to the output stream.
+    /// </summary>
+    /// <param name="value">The value.</param>
+    public Task WriteValue(PdfsValue value);
     #endregion
 }
