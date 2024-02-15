@@ -26,5 +26,11 @@
   <ItemGroup>
     <ProjectReference Include="..\PagePerfect.PdfScript\PagePerfect.PdfScript.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\PagePerfect.PdfScript.Console\PagePerfect.PdfScript.Console.csproj" />
+  </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Console/Data/input.pdfs" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

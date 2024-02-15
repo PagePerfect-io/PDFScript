@@ -1,0 +1,6 @@
+# var $width /Number 200
+# var $height /Number 150
+1 0.2 0.1 rg
+0 0.1 0.7 RG
+20 300 $width $height re f
+20 300 $width $height re S

@@ -46,13 +46,14 @@ public class Configuration
         while (a < args.Length)
         {
 
-            var arg = args[a];
+            var arg = args[a++];
             switch (state)
             {
                 case ConfigurationState.None:
                     // We are expecting a command
                     if (arg.StartsWith('-')) throw new ArgumentException($"Expected a command, but received {arg}");
                     command = ValidateCommand(arg);
+                    state = ConfigurationState.Command;
                     break;
 
                 case ConfigurationState.Command:
