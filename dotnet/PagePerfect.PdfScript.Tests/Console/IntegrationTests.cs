@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Text;
+using NSubstitute.Routing.AutoValues;
 
 namespace PagePerfect.PdfScript.Tests.Console;
 
@@ -32,6 +34,108 @@ public class IntegrationTests
 
         Assert.Empty(err);
         Assert.True(File.Exists("output.pdf"));
+    }
+
+    /// <summary>
+    /// The CLI process should watch a single .pdfs file.
+    /// </summary>
+    [Fact]
+    public void ShouldWatchPdfsFile()
+    {
+        var consoleApp = StartApplication("watch", "Console/Data/input.pdfs", "output.pdf");
+        var err = new StringBuilder();
+        var output = new StringBuilder();
+        consoleApp.OutputDataReceived += (sender, args) =>
+        {
+            output.AppendLine(args.Data);
+        };
+        consoleApp.ErrorDataReceived += (sender, args) =>
+        {
+            err.AppendLine(args.Data);
+        };
+        consoleApp.BeginOutputReadLine();
+        consoleApp.BeginErrorReadLine();
+
+        //        File.SetLastWriteTimeUtc("Console/Data/input.pdfs", DateTime.UtcNow);
+        // Give the process time to react to the file change
+        Thread.Sleep(200);
+        File.AppendAllText("Console/Data/input.pdfs", " ");
+        Thread.Sleep(200);
+
+        consoleApp.Kill();
+        consoleApp.WaitForExit();
+
+        Assert.Empty(err.ToString().Trim());
+        Assert.True(File.Exists("output.pdf"));
+        Assert.Contains("has changed. Re-running...", output.ToString());
+    }
+
+    /// <summary>
+    /// The CLI process should watch a directory for changes to .pdfs files.
+    /// </summary>
+    [Fact]
+    public void ShouldWatchDirectory()
+    {
+        var consoleApp = StartApplication("watch", "Console/Data");
+        var err = new StringBuilder();
+        var output = new StringBuilder();
+        consoleApp.OutputDataReceived += (sender, args) =>
+        {
+            output.AppendLine(args.Data);
+        };
+        consoleApp.ErrorDataReceived += (sender, args) =>
+        {
+            err.AppendLine(args.Data);
+        };
+        consoleApp.BeginOutputReadLine();
+        consoleApp.BeginErrorReadLine();
+
+        //        File.SetLastWriteTimeUtc("Console/Data/input.pdfs", DateTime.UtcNow);
+        // Give the process time to react to the file change
+        Thread.Sleep(200);
+        File.AppendAllText("Console/Data/input.pdfs", " ");
+        Thread.Sleep(200);
+
+        consoleApp.Kill();
+        consoleApp.WaitForExit();
+
+        Assert.Empty(err.ToString().Trim());
+        Assert.True(File.Exists("output.pdf"));
+        Assert.Contains("input.pdfs has changed. Re-running...", output.ToString());
+    }
+
+    /// <summary>
+    /// The CLI process should watch a target directory's subdirecties for changes to .pdfs files.
+    /// </summary>
+    [Fact]
+    public void ShouldWatchSubDirectories()
+    {
+        var consoleApp = StartApplication("watch", "Console");
+        var err = new StringBuilder();
+        var output = new StringBuilder();
+        consoleApp.OutputDataReceived += (sender, args) =>
+        {
+            output.AppendLine(args.Data);
+        };
+        consoleApp.ErrorDataReceived += (sender, args) =>
+        {
+            err.AppendLine(args.Data);
+        };
+        consoleApp.BeginOutputReadLine();
+        consoleApp.BeginErrorReadLine();
+
+        //        File.SetLastWriteTimeUtc("Console/Data/input.pdfs", DateTime.UtcNow);
+        // Give the process time to react to the file change
+        Thread.Sleep(200);
+        File.AppendAllText("Console/Data/input.pdfs", " ");
+        Thread.Sleep(1000);
+
+        consoleApp.Kill();
+        consoleApp.WaitForExit();
+
+        Assert.Empty(err.ToString().Trim());
+        Assert.True(File.Exists("output.pdf"));
+        Assert.Contains("input.pdfs has changed. Re-running...", output.ToString());
     }
     #endregion
 

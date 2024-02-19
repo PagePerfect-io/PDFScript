@@ -37,7 +37,7 @@ public class ConfigurationTests
         config = Configuration.Parse(["run", "helloworld.pdfs"]);
         Assert.Equal("run", config.Command);
         Assert.Equal("helloworld.pdfs", config.InputFile);
-        Assert.Equal("helloworld.pdf", config.OutputFile);
+        Assert.Null(config.OutputFile);
     }
 
     /// <summary>

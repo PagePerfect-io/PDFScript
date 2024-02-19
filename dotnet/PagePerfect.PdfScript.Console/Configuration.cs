@@ -69,8 +69,9 @@ public class Configuration
                     }
                     else
                     {
-                        // An input and output file are only valid if we have received a "run" command.
-                        if ("run" != command) throw new ArgumentException($"Invalid argument {arg} for command {command}");
+                        // An input and output file are only valid if we have received a "run"
+                        // or "watch" command.
+                        if ("run" != command && "watch" != command) throw new ArgumentException($"Invalid argument {arg} for command {command}");
 
                         if (null == inputFile) inputFile = arg;
                         else if (null == outputFile) outputFile = arg;
