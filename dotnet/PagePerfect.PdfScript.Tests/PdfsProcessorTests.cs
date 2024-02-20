@@ -152,6 +152,85 @@ public class PdfsProcessorTests
     #endregion
 
     #region Images and the Do operator
+    /// <summary>
+    /// The processor should place an image using the /Do operation.
+    /// </summary>
+    [Fact]
+    public async Task ShouldPlaceImage()
+    {
+        using var stream = S("# resource /Img1 /Image (Resource/pageperfect.jpg)\r\n100 0 0 100 200 300 cm /Img1 Do");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a call to write a 'cm' and a call to write a 'Do'.
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 100));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 0));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 0));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 100));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 200));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 300));
+        await writer.Received(1).WriteRawContent("cm\r\n");
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Name && v.GetString() == "/Img1"));
+        await writer.Received(1).WriteRawContent("Do\r\n");
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the named image cannot be
+    /// found, when placing an image.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenImageNotFoundWhenPlacingImage()
+    {
+        using var stream = S("/Img1 Do");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the name
+    /// does not match the /Image resource type.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceNotImageWhenPlacingImage()
+    {
+        using var stream = S("# resource /Img1 /Font (https://font.com/fake)\r\n/Img1 Do");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the image
+    /// could not be located.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenImageNotLocatedWhenPlacingImage()
+    {
+        using var stream = S("# resource /Img1 /Image (https://image.unkonwn)\r\n/Img1 Do");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the image
+    /// is not a JPEG image.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenImageNotJPEGWhenPlacingImage()
+    {
+        using var stream = S("# resource /Img1 /Image (Resource/Test.png)\r\n/Img1 Do");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+
+    }
+
     #endregion
 
     #region Text and standard fonts
