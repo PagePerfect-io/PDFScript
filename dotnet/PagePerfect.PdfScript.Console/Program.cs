@@ -17,26 +17,33 @@ class Program
     /// <param name="args">The command line arguments.</param>
     static async Task Main(string[] args)
     {
-        System.Console.WriteLine("PDFScript CLI");
-        System.Console.WriteLine("Usage: pdfs run [arguments] <input-file> [output-file]");
-        System.Console.WriteLine("       pdfs watch [arguments] [input-file]");
-        System.Console.WriteLine();
-        System.Console.WriteLine("Runs a PDFScript file or watches for changes and re-runs the script.");
-
-        var config = Configuration.Parse(args);
-
-        switch (config.Command)
+        try
         {
-            case "run":
-                await Run(config);
-                break;
+            System.Console.WriteLine("PDFScript CLI");
+            System.Console.WriteLine("Usage: pdfs run [arguments] <input-file> [output-file]");
+            System.Console.WriteLine("       pdfs watch [arguments] [input-file]");
+            System.Console.WriteLine();
+            System.Console.WriteLine("Runs a PDFScript file or watches for changes and re-runs the script.");
 
-            case "watch":
-                Watch(config);
-                break;
+            var config = Configuration.Parse(args);
 
-            default:
-                throw new ArgumentException($"Unknown command: {config.Command}");
+            switch (config.Command)
+            {
+                case "run":
+                    await Run(config);
+                    break;
+
+                case "watch":
+                    Watch(config);
+                    break;
+
+                default:
+                    throw new ArgumentException($"Unknown command: {config.Command}");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Console.Error.WriteLine(ex.Message);
         }
     }
     #endregion
@@ -98,6 +105,11 @@ class Program
             config.OutputFile = Path.ChangeExtension(e.FullPath, ".pdf");
             await Run(config);
         };
+        watcher.Error += (sender, e) =>
+        {
+            System.Console.Error.WriteLine($"Error: {e.GetException()}");
+        };
+
         watcher.EnableRaisingEvents = true;
         watcher.IncludeSubdirectories = true;
 
@@ -121,16 +133,16 @@ class Program
             Filter = $"*{Path.GetExtension(config.InputFile)!}"// Path.GetFileName(config.InputFile)!
         };
         watcher.Changed += async (sender, e) =>
-            {
-                if (e.FullPath != full) { return; }
+        {
+            if (e.FullPath != full) { return; }
 
-                System.Console.WriteLine($"File {e.FullPath} has changed. Re-running...");
-                await Run(config);
-            };
+            System.Console.WriteLine($"File {e.FullPath} has changed. Re-running...");
+            await Run(config);
+        };
         watcher.Error += (sender, e) =>
-                {
-                    System.Console.Error.WriteLine($"Error: {e.GetException()}");
-                };
+        {
+            System.Console.Error.WriteLine($"Error: {e.GetException()}");
+        };
         watcher.EnableRaisingEvents = true;
         watcher.IncludeSubdirectories = false;
 

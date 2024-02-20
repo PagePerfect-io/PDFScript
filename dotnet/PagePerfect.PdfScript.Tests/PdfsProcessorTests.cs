@@ -15,6 +15,24 @@ public class PdfsProcessorTests
     // ============
     #region Document structure
     /// <summary>
+    /// The processor should not create a document when no statements are present.
+    /// </summary>
+    /// <returns></returns>
+    [Fact]
+    public async Task ShouldNotCreateDocumentWhenNoStatements()
+    {
+        using var stream = S("");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We should not have opened a page or document.
+        await writer.DidNotReceive().Open();
+        await writer.DidNotReceive().OpenPage(Arg.Any<double>(), Arg.Any<double>(), Arg.Any<DisplayOrientation>());
+        await writer.Received(1).CloseIfNeeded();
+    }
+
+    /// <summary>
     /// The processor should correctly open and close a page and document.
     /// </summary>
     [Fact]
@@ -28,7 +46,7 @@ public class PdfsProcessorTests
         // We should have opened a page and closed it.
         // We should also have closed the document.
         await writer.Received(1).OpenPage(595, 841, DisplayOrientation.Regular);
-        await writer.Received(1).Close();
+        await writer.Received(1).CloseIfNeeded();
     }
 
     /// <summary>
@@ -45,7 +63,7 @@ public class PdfsProcessorTests
         // We expect two pages to be opened, and one of those explicitly closed.
         await writer.Received(2).OpenPage(595, 841, DisplayOrientation.Regular);
         await writer.Received(1).ClosePage();
-        await writer.Received(1).Close();
+        await writer.Received(1).CloseIfNeeded();
     }
 
     /// <summary>
@@ -62,7 +80,7 @@ public class PdfsProcessorTests
         // We expect three pages.
         await writer.Received(3).OpenPage(595, 841, DisplayOrientation.Regular);
         await writer.Received(2).ClosePage();
-        await writer.Received(1).Close();
+        await writer.Received(1).CloseIfNeeded();
     }
 
     #endregion

@@ -61,6 +61,11 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     // ========================
     #region IPdfDocumentWriter implementation
     /// <summary>
+    /// Indicates if the document is currently open.
+    /// </summary>
+    public bool IsOpen { get => _state != WriterState.None && _state != WriterState.Closed; }
+
+    /// <summary>
     /// Finalises the document. This method wraps up any pending
     /// operations, closes the current page if applicable, and any
     /// other state, and closes the file stream. This instance can
@@ -112,6 +117,22 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             $"\r\n{_currentPage.ContentStreamLengthReference!.ToString(PdfObjectNotation.Declaration)} {streamLength} endobj");
 
         _state = WriterState.Page;
+    }
+
+    /// <summary>
+    /// Finalises the document. This method wraps up any pending
+    /// operations, closes the current page if applicable, and any
+    /// other state, and closes the file stream. This instance can
+    /// no longer be used after calling this method.
+    /// This method will do nothing if the document isn't yet open,
+    /// or was already closed. To throw an exception if the document
+    /// is in an invalid state, use the Close() method instead.
+    /// /// </summary>
+    public async Task CloseIfNeeded()
+    {
+        if (_state == WriterState.None || _state == WriterState.Closed) return;
+
+        await Close();
     }
 
     /// <summary>
@@ -378,7 +399,6 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         }
     }
     #endregion
-
 
 
     // Public methods

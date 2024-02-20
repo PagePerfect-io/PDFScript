@@ -8,6 +8,17 @@ namespace PagePerfect.PdfScript.Writer;
 /// </summary>
 public interface IPdfDocumentWriter
 {
+    // Public properties
+    // =================
+    #region Public properties
+    /// <summary>
+    /// Indicates if the document is currently open.
+    /// </summary>
+    public bool IsOpen { get; }
+    #endregion
+
+
+
     // Public methods
     // ==============
     #region Public methods
@@ -24,6 +35,17 @@ public interface IPdfDocumentWriter
     /// close a stream if one isn't open - the call will be ignored instead.
     /// </summary>
     public Task CloseContentStream();
+
+    /// <summary>
+    /// Finalises the document. This method wraps up any pending
+    /// operations, closes the current page if applicable, and any
+    /// other state, and closes the file stream. This instance can
+    /// no longer be used after calling this method.
+    /// This method will do nothing if the document isn't yet open,
+    /// or was already closed. To throw an exception if the document
+    /// is in an invalid state, use the Close() method instead.
+    /// /// </summary>
+    public Task CloseIfNeeded();
 
     /// <summary>
     /// Closes the currently opened object. This call is only valid in the Free or Page state.

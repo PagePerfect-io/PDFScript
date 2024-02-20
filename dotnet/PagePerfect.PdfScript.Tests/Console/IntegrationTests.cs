@@ -94,7 +94,7 @@ public class IntegrationTests
         // Give the process time to react to the file change
         Thread.Sleep(200);
         File.AppendAllText("Console/Data/input.pdfs", " ");
-        Thread.Sleep(200);
+        Thread.Sleep(1000);
 
         consoleApp.Kill();
         consoleApp.WaitForExit();

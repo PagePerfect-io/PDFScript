@@ -32,13 +32,14 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// <param name="writer">The writer to use.</param>
     public async Task Process()
     {
-        await _writer.Open();
-
         // We process statements from the reader until we reach the end of the stream.
         // Depending on the processor's state and the type of statement, we will
         // validate and output graphics instructions, prolog statements, or others.
         while (await _reader.Read())
         {
+            // If we've not yet opened the document, do so now.
+            if (!_writer.IsOpen) await _writer.Open();
+
             switch (_reader.Statement!.Type)
             {
                 case PdfsStatementType.PrologStatement:
@@ -80,7 +81,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         }
 
         // We're done, so we can close the current page and document.
-        await _writer.Close();
+        await _writer.CloseIfNeeded();
     }
 
     /// <summary>
