@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Reader.Statements;
 using PagePerfect.PdfScript.Reader.Statements.Prolog;
@@ -18,7 +19,9 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private PdfsReader _reader = new(source);
     private IPdfDocumentWriter _writer = writer;
     private PdfsProcessorState _state = PdfsProcessorState.Initial;
+    private Dictionary<string, ResourceDeclaration> _resourceDeclarations = [];
     private Dictionary<string, PdfsVariable> _variables = [];
+    private Dictionary<string, PdfResourceReference> _localResources = [];
     #endregion
 
 
@@ -102,6 +105,27 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     // ======================
     #region Private implementation
     /// <summary>
+    /// The EnsureLocalImage method ensures that an image is stored in the document.
+    /// If the image hasn't already been added, this method will download the image
+    /// and add it to the document.
+    /// </summary>
+    /// <param name="location">The location of the resource.</param>
+    /// <returns>A resource reference.</returns>
+    private PdfResourceReference EnsureLocalImage(string location)
+    {
+        if (_localResources.TryGetValue(location, out var resource)) return resource;
+
+        // Download the image locally.
+
+
+        // Add the image to the document.
+        var image = new PdfImage(location);
+        _writer.AddImage(image);
+        _localResources[location] = image;
+        return image;
+    }
+
+    /// <summary>
     /// Opens a new page in the document.
     /// </summary>
     private async Task OpenNewPage()
@@ -164,6 +188,26 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Resolves a resource. This method resolves a resource by name, and
+    /// returns its location. If the resource cannot be found, or is not of
+    /// the expected type, this method throws an exception.
+    /// </summary>
+    /// <param name="name">The resource name.</param>
+    /// <param name="type">The type of resource.</param>
+    /// <returns>The resource locaiton.</returns>
+    private string ResolveResource(string name, ResourceType type)
+    {
+        if (!_resourceDeclarations.TryGetValue(name, out var resource))
+        {
+            throw new PdfsProcessorException($"Resource '{name}' is not defined.");
+        }
+
+        if (resource.ResourceType != type) throw new PdfsProcessorException($"Resource '{name}' is not of type '{type}'.");
+
+        return resource.Location;
+    }
+
+    /// <summary>
     /// resolves a variable by name. This method locates the variable,
     /// case-sensitive, and returns its value.
     /// </summary>
@@ -192,11 +236,55 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
-    /// Writes a graphics operation to the output stream. This method outputs
-    /// the operands and operator.
+    /// Writes a Do operation. This method will resolve the resource,
+    /// locate it, add it to the document, and output the Do operation. 
+    /// </summary>
+    /// <param name="op">The operation</param>
+    private async Task WriteDoOperation(GraphicsOperation op)
+    {
+        // We only support images for now.
+        var location = ResolveResource(op.Operands[0].GetString(), ResourceType.Image);
+
+        // Add to the document if not already added.
+        var stored = EnsureLocalImage(location);
+
+        // Add the image to the current page.
+        _writer.AddResourceToPage(stored.ObjectReference);
+
+        // Write the Do operation.
+        await _writer.WriteRawContent($"{stored.Identifier} Do\r\n");
+    }
+
+    /// <summary>
+    /// Writes a graphics operation to the output stream. This method detects
+    /// special cases, such as Do and Tj, and dispatches appropriately, before
+    /// defaulting to a standard output of the operands and operator.
     /// </summary>
     /// <param name="op">The operation.</param>
     private async Task WriteGraphicsOperation(GraphicsOperation op)
+    {
+        switch (op.Operator)
+        {
+            case Operator.Do:
+                await WriteDoOperation(op);
+                break;
+
+            //            case Operator.Tj:
+            //              await WriteTjOperation(op);
+            //            break;
+
+            default:
+                await WriteStandardGraphicsOperation(op);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Writes a graphics operation to the output stream. This method
+    /// outputs the operands and operator.
+    /// </summary>
+    /// <param name="op">The operation.</param>
+    private async Task WriteStandardGraphicsOperation(GraphicsOperation op)
     {
         // Write the operands. If needed we resolve variables.
         foreach (var v in op.Operands)

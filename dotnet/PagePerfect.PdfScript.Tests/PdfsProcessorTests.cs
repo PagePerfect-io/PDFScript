@@ -102,7 +102,44 @@ public class PdfsProcessorTests
     }
     #endregion
 
-    #region Prolog statements
+    #region Prolog statements - resources
+    /// <summary>
+    /// The processor should throw an exception when declaring a resource twice.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenDeclaringResourcesTwice()
+    {
+        using var stream = S("# resource /Img1 /Image () # resource /Img1 /Image ()");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the type is not Font or Image.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceTypeIsInvalidInDeclaration()
+    {
+        using var stream = S("# resource /Img1 /Unknown () ");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the resource name is a
+    /// reserved name.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourcNameIsReserved()
+    {
+        using var stream = S("# resource /DeviceCMYK /Image () ");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+    }
     #endregion
 
     #region Variables
