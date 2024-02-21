@@ -533,6 +533,8 @@ public class PdfsLexer(Stream stream)
                         case STRING_OPEN:
                         case FRAGMENT:
                         case VARIABLE_START:
+                        case FULL_STOP:
+                        case MINUS:
                             // We're done. This keyword could be a reference (if the keyword is 'R')
                             // or a name, if it starts with a / character. Otherwise, it's some
                             // other keyword.
@@ -543,6 +545,7 @@ public class PdfsLexer(Stream stream)
 
                         default:
                             TokenBuffer[TokenLength++] = current;
+
                             break;
 
                     }
