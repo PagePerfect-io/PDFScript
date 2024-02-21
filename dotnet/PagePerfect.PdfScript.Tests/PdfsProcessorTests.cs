@@ -125,7 +125,7 @@ public class PdfsProcessorTests
         using var stream = S("# resource /Img1 /Unknown () ");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
-        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
     }
 
     /// <summary>
@@ -135,7 +135,7 @@ public class PdfsProcessorTests
     [Fact]
     public async Task ShouldThrowWhenResourcNameIsReserved()
     {
-        using var stream = S("# resource /DeviceCMYK /Image () ");
+        using var stream = S("# resource /Image /Image () ");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
         await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
@@ -195,21 +195,23 @@ public class PdfsProcessorTests
     [Fact]
     public async Task ShouldPlaceImage()
     {
-        using var stream = S("# resource /Img1 /Image (Resource/pageperfect.jpg)\r\n100 0 0 100 200 300 cm /Img1 Do");
+        using var stream = S("# resource /Img1 /Image (Data/pageperfect-logo.jpg)\r\n100 0 0 100 200 300 cm /Img1 Do");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateImage(Arg.Any<string>()).Returns(new Image(new PdfObjectReference(1, 0), "Img1", "Data/pageperfect-logo.jpg", null));
         await PdfsProcessor.Process(stream, writer);
 
+        // We expect calls to AddResourceToPage and CreateImage
+        writer.Received(1).CreateImage(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+
         // We expect a call to write a 'cm' and a call to write a 'Do'.
-        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 100));
-        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 0));
-        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 0));
-        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 100));
+        await writer.Received(2).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 100));
+        await writer.Received(2).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 0));
         await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 200));
         await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 300));
         await writer.Received(1).WriteRawContent("cm\r\n");
-        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Name && v.GetString() == "/Img1"));
-        await writer.Received(1).WriteRawContent("Do\r\n");
+        await writer.Received(1).WriteRawContent("/Img1 Do\r\n");
     }
 
     /// <summary>
@@ -222,7 +224,7 @@ public class PdfsProcessorTests
         using var stream = S("/Img1 Do");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
-        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
 
     }
 
@@ -236,7 +238,7 @@ public class PdfsProcessorTests
         using var stream = S("# resource /Img1 /Font (https://font.com/fake)\r\n/Img1 Do");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
-        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
 
     }
 
@@ -250,7 +252,7 @@ public class PdfsProcessorTests
         using var stream = S("# resource /Img1 /Image (https://image.unkonwn)\r\n/Img1 Do");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
-        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
 
     }
 
@@ -264,7 +266,7 @@ public class PdfsProcessorTests
         using var stream = S("# resource /Img1 /Image (Resource/Test.png)\r\n/Img1 Do");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
-        await Assert.ThrowsAsync<PdfsReaderException>(() => PdfsProcessor.Process(stream, writer));
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
 
     }
 

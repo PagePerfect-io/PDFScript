@@ -32,5 +32,6 @@
 
   <ItemGroup>
     <None Update="Console/Data/input.pdfs" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Data/pageperfect-logo.jpg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

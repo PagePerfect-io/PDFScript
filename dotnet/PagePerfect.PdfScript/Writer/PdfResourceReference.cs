@@ -16,16 +16,17 @@ public abstract class PdfResourceReference
     /// <param name="obj">The PDF object that this resource refers to.</param>
     /// <param name="identifier">The identifier that the object will be known as in the current page</param>
     /// <param name="type">The type of resource that this is.</param>
+    /// <param name="tag">Optionally, a tag to identify the resource.</param>
     /// <exception cref="ArgumentException">The obect reference and identifier cannot be Null or empty.</exception>
-    public PdfResourceReference(PdfObjectReference obj, string identifier, PdfResourceType type)
+    public PdfResourceReference(PdfObjectReference obj, string identifier, PdfResourceType type, object? tag = null)
     {
-        if (null == obj) throw new ArgumentNullException(nameof(obj));
         if (obj.IsEmpty()) throw new ArgumentException("The object reference can not be empty", nameof(obj));
         if (string.IsNullOrEmpty(identifier)) throw new ArgumentException("The identifier cannot be null or empty", nameof(identifier));
 
         ObjectReference = obj;
         Identifier = identifier;
         Type = type;
+        Tag = tag;
     }
     #endregion
 
@@ -42,6 +43,11 @@ public abstract class PdfResourceReference
     /// Retrieves the object reference for this resource.
     /// </summary>
     public PdfObjectReference ObjectReference { get; }
+
+    /// <summary>
+    /// An object instance that acts as a tag to identify the resource.
+    /// </summary>
+    public object? Tag { get; }
 
     /// <summary>
     /// Retrieves a value that indicates the resource's type - this string will be used in the page's

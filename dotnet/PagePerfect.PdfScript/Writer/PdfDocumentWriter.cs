@@ -1,4 +1,5 @@
 using PagePerfect.PdfScript.Reader;
+using PagePerfect.PdfScript.Writer.Resources.Images;
 
 namespace PagePerfect.PdfScript.Writer;
 
@@ -66,6 +67,31 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     public bool IsOpen { get => _state != WriterState.None && _state != WriterState.Closed; }
 
     /// <summary>
+    /// Adds the specified resource to the page's resources.
+    /// This operation is only valid if a page is currently open.
+    /// Calling this method twice with the same resource reference on the same page is safe; the resource will only be added once.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">The specified resource is a Null reference.</exception>
+    /// <exception cref="PdfDocumentWriterException">The specified resource does not exist in the document,
+    /// so it cannot be added as a page resource. Either the resource was not created through one of the
+    /// resource creation methods (such as CreateFont), or it was created in a different Writer instance.
+    /// </exception>
+    /// <exception cref="PdfDocumentWriterException">A page has not been opened. This operation is only valid when a page has been
+    /// opened as it applies to the current page.</exception>
+    /// <param name="resource">The resource to add</param>
+    public void AddResourceToPage(PdfResourceReference resource)
+    {
+        if (WriterState.Page != _state && WriterState.Content != _state)
+            throw new PdfDocumentWriterException("Invalid state. A page must be opened before adding resources.");
+
+        if (!_documentResources.Contains(resource))
+            throw new PdfDocumentWriterException("The resource does not exist in this document");
+
+        if (!_currentPage!.Resources.Contains(resource))
+            _currentPage.Resources.Add(resource);
+    }
+
+    /// <summary>
     /// Finalises the document. This method wraps up any pending
     /// operations, closes the current page if applicable, and any
     /// other state, and closes the file stream. This instance can
@@ -80,7 +106,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
 
         await TryClosePage();
 
-        //await WriteDocumentResources();
+        await WriteDocumentResources();
         await WritePages();
         var xrefPointer = await WriteCrossReferenceTable();
         await WriteTrailer();
@@ -158,6 +184,24 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             throw new PdfDocumentWriterException("Invalid state. No page is currently open.");
 
         await TryClosePage();
+    }
+
+
+    /// <summary>
+    /// Creates a new Image resource and returns a reference that identifies the image.
+    /// </summary>
+    /// <param name="filename">The image filename</param>
+    /// <param name="tag">An optional tag that can be used to identify the image.</param>
+    /// <returns>Reference to the newly created image.</returns>
+    /// <exception cref="ArgumentNullException">The filename argument is null</exception>
+    public Image CreateImage(string filename, object? tag = null)
+    {
+        var imageRef = CreateObjectReference();
+        var image = new Image(imageRef, CreateResourceName("I"), filename, tag);
+
+        _documentResources.Add(image);
+
+        return image;
     }
 
     /// <summary>
@@ -405,32 +449,6 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     // ==============
     #region Public methods
     /*
-    /// <summary>
-    /// Adds the specified resource to the page's resources.
-    /// This operation is only valid if a page is currently open.
-    /// Calling this method twice with the same resource reference on the same page is safe; the resource will only be added once.
-    /// </summary>
-    /// <exception cref="ArgumentNullException">The specified resource is a Null reference.</exception>
-    /// <exception cref="PdfDocumentWriterException">The specified resource does not exist in the document,
-    /// so it cannot be added as a page resource. Either the resource was not created through one of the
-    /// resource creation methods (such as CreateFont), or it was created in a different Writer instance.
-    /// </exception>
-    /// <exception cref="PdfDocumentWriterException">A page has not been opened. This operation is only valid when a page has been
-    /// opened as it applies to the current page.</exception>
-    /// <param name="resource">The resource to add</param>
-    public void AddResourceToPage(PdfResourceReference resource)
-    {
-        if (null == resource) throw new ArgumentNullException(nameof(resource));
-
-        if (WriterState.Page != _state && WriterState.Content != _state)
-            throw new PdfDocumentWriterException("Invalid state. A page must be opened before adding resources.");
-
-        if (!_documentResources.Contains(resource))
-            throw new PdfDocumentWriterException("The resource does not exist in this document");
-
-        if (!_currentPage!.Resources.Contains(resource))
-            _currentPage.Resources.Add(resource);
-    }
 
     
 
@@ -530,24 +548,6 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         _documentResources.Add(font);
 
         return font;
-    }
-
-    /// <summary>
-    /// Creates a new Image resource and returns a reference that identifies the image.
-    /// </summary>
-    /// <param name="filename">The image filename</param>
-    /// <returns>Reference to the newly created image.</returns>
-    /// <exception cref="ArgumentNullException">The filename argument is null</exception>
-    public Image CreateImage(string filename)
-    {
-        if (null == filename) throw new ArgumentNullException(nameof(filename));
-
-        var imageRef = CreateObjectReference();
-        var image = new Image(imageRef, CreateResourceName("I"), filename);
-
-        _documentResources.Add(image);
-
-        return image;
     }
 
     /// <summary>
@@ -738,13 +738,12 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// <summary>
     /// Writes the document resources to the PDF stream.
     /// </summary>
-    private static void WriteDocumentResources()
+    private async Task WriteDocumentResources()
     {
-        /*
-        var fonts = new List<Font>();
+        //var fonts = new List<Font>();
         var images = new List<Image>();
-        var customResources = new List<CustomResource>();
-        var forms = new List<Form>();
+        //var customResources = new List<CustomResource>();
+        //var forms = new List<Form>();
 
         // Copy fonts and images into their respective lists.
         // Custom resources require outside intervention.
@@ -753,25 +752,24 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             switch (resource.Type)
             {
                 case PdfResourceType.Font:
-                    fonts.Add((Font)resource);
+                    //fonts.Add((Font)resource);
                     break;
                 case PdfResourceType.Image:
                     images.Add((Image)resource);
                     break;
                 case PdfResourceType.Form:
-                    forms.Add((Form)resource);
+                    //forms.Add((Form)resource);
                     break;
                 case PdfResourceType.Custom:
-                    customResources.Add((CustomResource)resource);
+                    //customResources.Add((CustomResource)resource);
                     break;
             }
         }
 
-        if (customResources.Any()) await WriteCustomResources(customResources);
-        if (fonts.Any()) await WriteFonts(fonts);
-        if (images.Any()) await WriteImages(images);
-        if (forms.Any()) await WriteForms(forms);
-        */
+        // if (customResources.Any()) await WriteCustomResources(customResources);
+        // if (fonts.Any()) await WriteFonts(fonts);
+        if (images.Count != 0) await WriteImages(images);
+        // if (forms.Any()) await WriteForms(forms);    
     }
 
     /// <summary>
@@ -791,6 +789,67 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     private async Task WriteHeader()
     {
         await _writer.WriteLineAsync("%PDF-1.7");
+    }
+
+    /// <summary>
+    /// Writes an image resource. Currently this method supports writing a JPEG image,
+    /// and no other formats. 
+    /// </summary>
+    /// <param name="image">The image resource.</param>
+    /// <exception cref="NotSupportedException">The image type is not supported.</exception>
+    /// <exception cref="PdfDocumentWriterException">There was an error writing the image.</exception>
+    private async Task WriteImage(Image image)
+    {
+        var imageType = ImageUtilities.GetImageType(image.Filename);
+        if (ImageType.Jpeg != imageType) throw
+            new NotSupportedException("Only JPEG images are supported in this version of the library.");
+
+        var file = new FileInfo(image.Filename);
+
+        var info = JpegUtilities.Parse(image.Filename);
+
+        await OpenObject(image.ObjectReference, "XObject");
+        await _writer.WriteLineAsync($"\t/Subtype\t/Image");
+        await _writer.WriteLineAsync($"\t/Width\t{info.Width}");
+        await _writer.WriteLineAsync($"\t/Height\t{info.Height}");
+        await _writer.WriteLineAsync($"\t/Length\t{file.Length}");
+
+        await _writer.WriteLineAsync($"\t/ColorSpace\t/{info.ColourSpace}");
+
+        if (ColourSpace.DeviceCMYK == info.ColourSpace && ImageType.Jpeg == imageType)
+        { await _writer.WriteLineAsync($" /Decode\t[1 0 1 0 1 0 1 0]"); }
+
+        await _writer.WriteLineAsync($"\t/BitsPerComponent\t8");
+        await _writer.WriteLineAsync($"\t/Name\t/{image.Identifier}");
+        await _writer.WriteLineAsync($"\t/Filter\t/DCTDecode");
+        await _writer.WriteLineAsync(">>");
+        await _writer.WriteLineAsync("stream");
+
+        await WriteBuffer(File.ReadAllBytes(image.Filename), 0, (int)file.Length);
+
+        await _writer.WriteLineAsync("\r\nendstream");
+        await _writer.WriteLineAsync("endobj");
+    }
+
+    /// <summary>
+    /// Writes the image definitions for each of the images used in the document.
+    /// </summary>
+    /// <param name="images">The images to write the definition of.</param>
+    /// <exception cref="PdfDocumentWriterException">The image could not be found</exception>
+    private async Task WriteImages(IEnumerable<Image> images)
+    {
+        // We go through each of the images in the list, and output them.
+        foreach (var image in images)
+        {
+            if (false == File.Exists(image.Filename))
+            {
+                // The image couldn't be found so we throw an exception
+                throw new PdfDocumentWriterException($"The image could not be found at path '{image.Filename}'.");
+            }
+
+            await _writer.WriteLineAsync();
+            await WriteImage(image);
+        } // for each image
     }
 
     /// <summary>

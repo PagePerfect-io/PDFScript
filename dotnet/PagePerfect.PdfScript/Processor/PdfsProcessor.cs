@@ -22,6 +22,21 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private Dictionary<string, ResourceDeclaration> _resourceDeclarations = [];
     private Dictionary<string, PdfsVariable> _variables = [];
     private Dictionary<string, PdfResourceReference> _localResources = [];
+    private static readonly string[] _reservedNames;
+    #endregion
+
+
+
+    // Type initialiser
+    // ================
+    #region Type initialiser
+    /// <summary>
+    /// Initialises the static fields of the PdfsProcessor class.
+    /// </summary>
+    static PdfsProcessor()
+    {
+        _reservedNames = ["/Type", "/Name", "/Length", "/Image", "/Font", "/Form", "/XObject", "/String", "/Number", "/Name", "/List", "/Dictionary", "/Boolean"];
+    }
     #endregion
 
 
@@ -111,18 +126,68 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// </summary>
     /// <param name="location">The location of the resource.</param>
     /// <returns>A resource reference.</returns>
-    private PdfResourceReference EnsureLocalImage(string location)
+    private async Task<PdfResourceReference> EnsureLocalImage(string location)
     {
         if (_localResources.TryGetValue(location, out var resource)) return resource;
 
         // Download the image locally.
-
+        var localPath = await DownloadResourceToTempFile(location);
 
         // Add the image to the document.
-        var image = new PdfImage(location);
-        _writer.AddImage(image);
+        var image = _writer.CreateImage(localPath);
         _localResources[location] = image;
+
         return image;
+    }
+
+    /// <summary>
+    /// Downloads a resource to a temporary file. This method will use the
+    /// specified path if it's a local path, or else it will attempt to download
+    /// the remote contents into a temporary file.
+    /// </summary>
+    /// <param name="location">The location of the file.</param>
+    /// <returns>The location of the downloaded file.</returns>
+    private static async Task<string> DownloadResourceToTempFile(string location)
+    {
+        var localPath = Path.GetTempFileName();
+
+        if (File.Exists(location))
+        {
+            File.Copy(location, localPath, true);
+            return localPath;
+        }
+        else
+        {
+            try
+            {
+                using var client = new HttpClient();
+                using var stmIn = await client.GetStreamAsync(location);
+                using var stmOut = File.OpenWrite(localPath);
+                await stmIn.CopyToAsync(stmOut);
+
+                return localPath;
+            }
+            catch (InvalidOperationException e)
+            {
+                throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+            }
+            catch (HttpRequestException e)
+            {
+                throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+            }
+            catch (IOException e)
+            {
+                throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+            }
+            catch (TaskCanceledException e)
+            {
+                throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+            }
+            catch (UriFormatException e)
+            {
+                throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+            }
+        }
     }
 
     /// <summary>
@@ -144,7 +209,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 break;
 
             case PrologStatementType.ResourceDeclaration:
-                //TryAddResource((prolog as ResourceDeclaration)!);
+                TryAddResourceDeclaration((prolog as ResourceDeclaration)!);
                 break;
         }
     }
@@ -224,6 +289,18 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         throw new PdfsProcessorException($"Variable '{name}' is not defined.");
     }
 
+    private void TryAddResourceDeclaration(ResourceDeclaration statement)
+    {
+        if (_resourceDeclarations.ContainsKey(statement.Name)) throw
+            new PdfsProcessorException($"Resource '{statement.Name}' is already defined.");
+
+
+        if (_reservedNames.Contains(statement.Name)) throw
+            new PdfsProcessorException($"'{statement.Name}' is a reserved name.");
+
+        _resourceDeclarations[statement.Name] = statement;
+    }
+
     private void TryAddVariableDeclaration(VarDeclaration statement)
     {
         if (_variables.ContainsKey(statement.Name))
@@ -246,13 +323,13 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         var location = ResolveResource(op.Operands[0].GetString(), ResourceType.Image);
 
         // Add to the document if not already added.
-        var stored = EnsureLocalImage(location);
+        var stored = await EnsureLocalImage(location);
 
         // Add the image to the current page.
-        _writer.AddResourceToPage(stored.ObjectReference);
+        _writer.AddResourceToPage(stored);
 
         // Write the Do operation.
-        await _writer.WriteRawContent($"{stored.Identifier} Do\r\n");
+        await _writer.WriteRawContent($"/{stored.Identifier} Do\r\n");
     }
 
     /// <summary>

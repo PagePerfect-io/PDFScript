@@ -169,4 +169,32 @@ public class PdfDocumentWriterTests
     }
     */
     #endregion
+
+    #region Image tests
+    /// <summary>
+    /// The PdfDocumentWriter class should support drawing of JPEG images.
+    /// </summary>
+    [Fact]
+    public async Task ShouldDrawJpegImage()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var img = writer.CreateImage("Data/pageperfect-logo.jpg");
+        await writer.WriteRawContent($"100 0 0 100 200 300 cm\r\n");
+        await writer.WriteRawContent($"/{img.Identifier} Do\r\n");
+        writer.AddResourceToPage(img);
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+        await writer.Close();
+
+        stream.Seek(0, SeekOrigin.Begin);
+        File.WriteAllBytes("Data/image-write-test.pdf", stream.ToArray());
+    }
+    #endregion
+
 }

@@ -23,6 +23,21 @@ public interface IPdfDocumentWriter
     // ==============
     #region Public methods
     /// <summary>
+    /// Adds the specified resource to the page's resources.
+    /// This operation is only valid if a page is currently open.
+    /// Calling this method twice with the same resource reference on the same page is safe; the resource will only be added once.
+    /// </summary>
+    /// <exception cref="ArgumentNullException">The specified resource is a Null reference.</exception>
+    /// <exception cref="PdfDocumentWriterException">The specified resource does not exist in the document,
+    /// so it cannot be added as a page resource. Either the resource was not created through one of the
+    /// resource creation methods (such as CreateFont), or it was created in a different Writer instance.
+    /// </exception>
+    /// <exception cref="PdfDocumentWriterException">A page has not been opened. This operation is only valid when a page has been
+    /// opened as it applies to the current page.</exception>
+    /// <param name="resource">The resource to add</param>
+    public void AddResourceToPage(PdfResourceReference resource);
+
+    /// <summary>
     /// Finalises the document. This method wraps up any pending
     /// operations, closes the current page if applicable, and any
     /// other state, and closes the file stream. This instance can
@@ -58,6 +73,15 @@ public interface IPdfDocumentWriter
     /// Closing a page also closes any other state, such as a Text Frame state.
     /// </summary>
     public Task ClosePage();
+
+    /// <summary>
+    /// Creates a new Image resource and returns a reference that identifies the image.
+    /// </summary>
+    /// <param name="filename">The image filename</param>
+    /// <param name="tag">An optional tag that can be used to identify the image.</param>
+    /// <returns>Reference to the newly created image.</returns>
+    /// <exception cref="ArgumentNullException">The filename argument is null</exception>
+    public Image CreateImage(string filename, object? tag = null);
 
     /// <summary>
     /// Creates a new object reference that is valid within this document.
