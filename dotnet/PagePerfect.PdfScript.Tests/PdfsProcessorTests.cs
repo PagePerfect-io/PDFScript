@@ -215,6 +215,33 @@ public class PdfsProcessorTests
     }
 
     /// <summary>
+    /// The Processor should embed an image only once, even when used multiple times
+    /// across pages.
+    /// </summary>
+    [Fact]
+    public async Task ShouldEmbedImageOnceWhenUsedMultipleTimes()
+    {
+        using var stream = S("# resource /Img1 /Image (Data/pageperfect-logo.jpg)\r\n" +
+            "100 0 0 100 200 300 cm /Img1 Do " +
+            "100 0 0 100 200 500 cm /Img1 Do " +
+            "endpage " +
+            "100 0 0 100 200 300 cm /Img1 Do "
+            );
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateImage(Arg.Any<string>()).Returns(new Image(new PdfObjectReference(1, 0), "Img1", "Data/pageperfect-logo.jpg", null));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect three calls to AddResourceToPage 
+        // We expect one call to  CreateImage
+        writer.Received(1).CreateImage(Arg.Any<string>());
+        writer.Received(3).AddResourceToPage(Arg.Any<PdfResourceReference>());
+
+        // We expect three writes of the 'Do' operation.
+        await writer.Received(3).WriteRawContent("/Img1 Do\r\n");
+
+    }
+    /// <summary>
     /// The processor should throw an exception when the named image cannot be
     /// found, when placing an image.
     /// </summary>
