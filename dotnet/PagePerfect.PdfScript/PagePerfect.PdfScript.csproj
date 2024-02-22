@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <!-- Ensure that the .afm files are included in the NuGet package -->
+  <ItemGroup>
+    <EmbeddedResource Include="Writer\Resources\Metrics\*.afm" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+
 </Project>

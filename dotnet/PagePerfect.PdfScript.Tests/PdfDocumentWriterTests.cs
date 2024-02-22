@@ -197,4 +197,36 @@ public class PdfDocumentWriterTests
     }
     #endregion
 
+    #region Standard font tests
+    /// <summary>
+    /// The PdfDocumentWriter should add a standard font to the document.
+    /// </summary>
+    [Fact]
+    public async Task ShouldAddStandardFont()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var helvetica = writer.CreateStandardFont("Helvetica");
+        var courier = writer.CreateStandardFont("Courier");
+
+        writer.AddResourceToPage(helvetica);
+        writer.AddResourceToPage(courier);
+
+        await writer.WriteRawContent($"BT /{helvetica.Identifier} 24 Tf 100 100 Td (Hello, world!) Tj ET\r\n");
+        await writer.WriteRawContent($"BT /{courier.Identifier} 24 Tf 100 200 Td (Hello, world!) Tj ET\r\n");
+
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+        await writer.Close();
+
+        stream.Seek(0, SeekOrigin.Begin);
+        File.WriteAllBytes("Data/standard-font-test.pdf", stream.ToArray());
+
+    }
+    #endregion
 }

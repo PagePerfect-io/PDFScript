@@ -3,6 +3,7 @@ using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Reader.Statements;
 using PagePerfect.PdfScript.Reader.Statements.Prolog;
 using PagePerfect.PdfScript.Writer;
+using PagePerfect.PdfScript.Writer.Resources.Fonts;
 
 namespace PagePerfect.PdfScript.Processor;
 
@@ -22,6 +23,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private Dictionary<string, ResourceDeclaration> _resourceDeclarations = [];
     private Dictionary<string, PdfsVariable> _variables = [];
     private Dictionary<string, PdfResourceReference> _localResources = [];
+    private GraphicsObject _currentGraphicsObject = GraphicsObject.Page;
     private static readonly string[] _reservedNames;
     #endregion
 
@@ -35,6 +37,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// </summary>
     static PdfsProcessor()
     {
+        // TODO add font names to reserved names.
         _reservedNames = ["/Type", "/Name", "/Length", "/Image", "/Font", "/Form", "/XObject", "/String", "/Number", "/Name", "/List", "/Dictionary", "/Boolean"];
     }
     #endregion
@@ -141,6 +144,29 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// The EnsureLocalTrueType method ensures that a TrueType font is stored in the document.
+    /// If the font hasn't already been added, this method will download the font
+    /// and add it to the document.
+    /// </summary>
+    /// <param name="location">The location of the resource.</param>
+    /// <returns>A resource reference.</returns>
+    private async Task<PdfResourceReference> EnsureLocalTrueTypeFont(string location)
+    {
+        if (_localResources.TryGetValue(location, out var resource)) return resource;
+
+        // Download the font locally.
+        var localPath = await DownloadResourceToTempFile(location);
+
+        throw new NotSupportedException("This method is not yet implemented.");
+
+        // Add the font to the document.
+        //var font = _writer.CreateTrueTypeFont(localPath);
+        //_localResources[location] = font;
+
+        //return font;
+    }
+
+    /// <summary>
     /// Downloads a resource to a temporary file. This method will use the
     /// specified path if it's a local path, or else it will attempt to download
     /// the remote contents into a temporary file.
@@ -195,9 +221,15 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// </summary>
     private async Task OpenNewPage()
     {
+        // If we're currently not on the Page object, we throw an exception -
+        // you must close a text or path object before opening a new page.
+        if (_currentGraphicsObject != GraphicsObject.Page) throw new
+            PdfsProcessorException("You must close a text or path object before opening a new page.");
+
         await _writer.OpenPage(595, 841, DisplayOrientation.Regular);
         await _writer.OpenContentStream();
 
+        _currentGraphicsObject = GraphicsObject.Page;
     }
 
     private void ProcessPrologStatement(PrologStatement prolog)
@@ -232,6 +264,36 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         }
 
         return new PdfsValue(dictionary);
+    }
+
+    /// <summary>
+    /// Resolves a font. This method will resolve a font by name, and return
+    /// a reference to the font resource. If the font is a standard font, this
+    /// method will ask the writer to create a standard font resource. Otherwise,
+    /// this method will resolve the resource, download the font from the
+    /// resource location, and create a true type font resource. 
+    /// /// </summary>
+    /// <param name="fontName">The name of the font.</param>
+    /// <returns>The font resource.</returns>
+    private async Task<PdfResourceReference> ResolveFont(string fontName)
+    {
+        if (FontUtilities.IsStandardFont(fontName))
+        {
+            if (_localResources.TryGetValue(fontName, out var resource)) return (Font)resource!;
+
+            var font = _writer.CreateStandardFont(fontName);
+            _localResources[fontName] = font;
+
+            return font;
+        }
+
+        // This is not a standard font. We support TrueType fonts.
+
+        // Find the resource declaration and check the type.
+        var location = ResolveResource(fontName, ResourceType.Font);
+
+        // Add to the document if not already added.
+        return await EnsureLocalTrueTypeFont(location);
     }
 
     /// <summary>
@@ -340,10 +402,18 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// <param name="op">The operation.</param>
     private async Task WriteGraphicsOperation(GraphicsOperation op)
     {
+        // Check if the operation is allowed in the current graphics object.
+        if (!op.IsAllowedIn(_currentGraphicsObject)) throw
+            new PdfsProcessorException($"Operation '{op.GetOperatorName()}' is not allowed in a {_currentGraphicsObject} object.");
+
         switch (op.Operator)
         {
             case Operator.Do:
                 await WriteDoOperation(op);
+                break;
+
+            case Operator.Tf:
+                await WriteTfOperation(op);
                 break;
 
             //            case Operator.Tj:
@@ -352,6 +422,36 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
             default:
                 await WriteStandardGraphicsOperation(op);
+                break;
+        }
+
+        // Some operations change the current graphics object.
+        switch (op.Operator)
+        {
+            case Operator.BT:
+                _currentGraphicsObject = GraphicsObject.Text;
+                break;
+
+            case Operator.ET:
+                _currentGraphicsObject = GraphicsObject.Page;
+                break;
+
+            case Operator.m:
+            case Operator.re:
+                _currentGraphicsObject = GraphicsObject.Path;
+                break;
+
+            case Operator.S:
+            case Operator.s:
+            case Operator.f:
+            case Operator.F:
+            case Operator.fStar:
+            case Operator.B:
+            case Operator.BStar:
+            case Operator.b:
+            case Operator.bStar:
+            case Operator.n:
+                _currentGraphicsObject = GraphicsObject.Page;
                 break;
         }
     }
@@ -371,6 +471,24 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         }
 
         await _writer.WriteRawContent($"{op.GetOperatorName()}\r\n");
+    }
+
+    private async Task WriteTfOperation(GraphicsOperation op)
+    {
+        // We resolve the font name and size.
+        var fontName = ResolveOperand(op.Operands[0]).GetString();
+        var fontSize = ResolveOperand(op.Operands[1]).GetNumber();
+
+        // If the font name is a standard font, then we add it to the page
+        // and proceed. Otherwise, we resolve the font resource and potentially
+        // embed it in the document.
+        var font = await ResolveFont(fontName);
+
+        // Add the font to the current page.
+        _writer.AddResourceToPage(font);
+
+        // Write the font and size.
+        await _writer.WriteRawContent($"/{font.Identifier} {fontSize} Tf\r\n");
     }
     #endregion
 

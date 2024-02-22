@@ -92,6 +92,17 @@ public interface IPdfDocumentWriter
     public PdfObjectReference CreateObjectReference();
 
     /// <summary>
+    /// Creates a new Font resource and returns a reference that identifies the font.
+    /// This method will create a font based on one of the 14 standard PDF fonts.
+    /// If the type name is not one of the standard fonts, this method will throw
+    /// an exception.
+    /// </summary>
+    /// <param name="typename">The font's typename</param>
+    /// <returns>Reference to the newly created font.</returns>
+    /// <exception cref="ArgumentNullException">The 'typename' argument is null</exception>
+    public Font CreateStandardFont(string typename, object? tag = null);
+
+    /// <summary>
     /// Flushes the PDF stream.
     /// </summary>
     public void Flush();

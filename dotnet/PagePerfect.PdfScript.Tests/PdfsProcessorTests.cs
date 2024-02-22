@@ -3,6 +3,7 @@ using NSubstitute;
 using PagePerfect.PdfScript.Processor;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Writer;
+using PagePerfect.PdfScript.Writer.Resources.Fonts;
 
 namespace PagePerfect.PdfScript.Tests;
 
@@ -299,10 +300,85 @@ public class PdfsProcessorTests
 
     #endregion
 
-    #region Text and standard fonts
+    #region Text and standard font
+    /// <summary>
+    /// The processor should include a standard font in the document.
+    /// </summary>
+    [Fact]
+    public async Task ShouldUseStandardFont()
+    {
+        using var stream = S("BT /Helvetica 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateStandardFont("/Helvetica").Returns(new StandardFont(new PdfObjectReference(1, 0), "F1", "Helvetica", null));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a call to CreateStandardFont and AddResourceToPage
+        writer.Received(1).CreateStandardFont("/Helvetica");
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+    }
+
+    /// <summary>
+    /// The processor should output a text object between Bt..ET operations.
+    /// </summary>
+    /// <returns></returns>
+    [Fact]
+    public async Task ShouldOutputTextObject()
+    {
+        using var stream = S("BT /Helvetica 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateStandardFont("/Helvetica").Returns(new StandardFont(new PdfObjectReference(1, 0), "F1", "Helvetica", null));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a call to CreateStandardFont and AddResourceToPage
+        writer.Received(1).CreateStandardFont("/Helvetica");
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        await writer.Received(2).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 100));
+        await writer.Received(1).WriteRawContent("Td\r\n");
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.String && v.GetString() == "Hello, world!"));
+        await writer.Received(1).WriteRawContent("Tj\r\n");
+        await writer.Received(1).WriteRawContent("ET\r\n");
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when it encounters text operations
+    /// outside of a text object.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenTextOperationsPlacedOutsideTextObject()
+    {
+        using var stream = S("100 100 Td");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when it encounters text operations
+    /// inside of a text object that are not allowed.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenInvalidOperationsInsideTextObject()
+    {
+        using var stream = S("BT BT ET ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+
+        using var stream2 = S("BT 1 0 0 1 200 150 cm ET");
+
+        writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream2, writer));
+
+    }
     #endregion
 
-    #region Fonts
+    #region TrueType Fonts
     #endregion
 
     #region Unicode text

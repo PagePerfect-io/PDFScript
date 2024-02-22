@@ -35,7 +35,11 @@ BT 1 0 0 1 20 810 Tm /TimeRoman 12 Tf (Hello, page two!) Tj ET
 The PDF file format is 30 years old and yet not much has changed in its core set of content instructions. Common and popular features like rounded rectangles or gradient fills are not available in the PDF specification, but you can use them in PDFScript.
 
 ```
-10 10 200 150 1.0 0.2 0.8 0.7 0.2 1.0 lrg10 10 200 150 10 10 rr f
+# pattern /Grad1 /LinearGradient /DeviceRGB 10 10 200 150 1.0 0.2 0.8 0.7 0.2 1.0
+# pattern /Grad1 /LinearGradient << /ColorSpace /DeviceRGB /Coords [10 10 200 150] /Colors [1.0 0.2 0.8, 0.7 0.2 1.0] >>
+
+/Grad1 scn
+10 10 200 150 10 10 rr f
 ```
 
 This produces a page with a rounded rectangle (the `rr` instruction), filled with a linear gradient brush (defined by `lrg`).

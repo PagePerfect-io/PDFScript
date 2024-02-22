@@ -23,5 +23,10 @@ public class GraphicsOperationAttribute(params PdfsValueKind[] operands) : Attri
     /// E.g. The T* operator is listed in the Operator enumeration as 'TStar'. 
     /// </summary>
     public string? Operator { get; set; }
+
+    /// <summary>
+    /// The graphics object that this operation is allowed in.
+    /// </summary>
+    public GraphicsObject AllowedIn { get; set; }
     #endregion
 }

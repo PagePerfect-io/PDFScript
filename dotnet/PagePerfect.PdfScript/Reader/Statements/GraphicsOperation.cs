@@ -18,6 +18,7 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
     /// </summary>
     private static readonly Dictionary<string, Operator> _operatorSymbols;
     private static readonly Dictionary<Operator, string> _operatorNames;
+    private static readonly Dictionary<Operator, GraphicsObject> _operatorObjects;
     private static readonly Dictionary<Operator, PdfsValueKind[][]> _operatorOperands;
     #endregion
 
@@ -33,6 +34,7 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
     {
         _operatorSymbols = [];
         _operatorNames = [];
+        _operatorObjects = [];
         _operatorOperands = [];
 
         CreateOperatorLookups();
@@ -85,6 +87,13 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
     // Public methods
     // ==============
     #region Public methods
+    /// <summary>
+    /// Determines if the operation is allowed in the specified graphics object.
+    /// </summary>
+    /// <param name="graphicsObject">The graphics object.</param>
+    /// <returns>True if the operation is allowed; false otherwise.</returns>
+    public bool IsAllowedIn(GraphicsObject graphicsObject) => (_operatorObjects[Operator] & graphicsObject) == graphicsObject;
+
     /// <summary>
     /// Retrieves this operation's operator name as it appears in a PDF
     /// content stream, or a .pdfs file.
@@ -159,11 +168,13 @@ public class GraphicsOperation(Operator @operator, PdfsValue[] operands)
                 _operatorNames.Add(op, op.ToString());
                 _operatorSymbols.Add(op.ToString(), op);
                 _operatorOperands.Add(op, []);
+                _operatorObjects.Add(op, GraphicsObject.Any);
                 continue;
             }
 
-            // Pick the name based on the first attribute's operator name, if available.
+            // Pick the name and allowed-in based on the first attribute's operator name, if available.
             var name = attr[0].Operator ?? op.ToString();
+            _operatorObjects.Add(op, attr[0].AllowedIn);
             _operatorNames.Add(op, name);
             _operatorSymbols.Add(name, op);
 

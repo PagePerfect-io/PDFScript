@@ -1,4 +1,5 @@
 using PagePerfect.PdfScript.Reader;
+using PagePerfect.PdfScript.Writer.Resources.Fonts;
 using PagePerfect.PdfScript.Writer.Resources.Images;
 
 namespace PagePerfect.PdfScript.Writer;
@@ -213,6 +214,28 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     public PdfObjectReference CreateObjectReference()
     {
         return _objects.Next();
+    }
+
+    /// <summary>
+    /// Creates a new Font resource and returns a reference that identifies the font.
+    /// This method will create a font based on one of the 14 standard PDF fonts.
+    /// If the type name is not one of the standard fonts, this method will throw
+    /// an exception.
+    /// </summary>
+    /// <param name="typename">The font's typename</param>
+    /// <returns>Reference to the newly created font.</returns>
+    /// <exception cref="ArgumentNullException">The 'typename' argument is null</exception>
+    public Font CreateStandardFont(string typename, object? tag = null)
+    {
+        if (!FontUtilities.IsStandardFont(typename)) throw
+            new ArgumentException("The font type name must be one of the standard PDF fonts.", nameof(typename));
+
+        var fontRef = CreateObjectReference();
+        var font = new StandardFont(fontRef, CreateResourceName("F"), typename.TrimStart('/'), tag);
+
+        _documentResources.Add(font);
+
+        return font;
     }
 
     /// <summary>
@@ -492,30 +515,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         return resourceRef;
     }
 
-    /// <summary>
-    /// Creates a new Font resource and returns a reference that identifies the font.
-    /// This method will create a font based on one of the 14 standard PDF fonts.
-    /// If the type name is not one of the standard fonts, this method will throw
-    /// an exception.
-    /// </summary>
-    /// <param name="typename">The font's typename</param>
-    /// <param name="embedFontFile">A boolean value that indicates if the font should be embedded inside the
-    /// PDF stream (true) or merely referenced.</param>
-    /// <returns>Reference to the newly created font.</returns>
-    /// <exception cref="ArgumentNullException">The 'typename' argument is null</exception>
-    public Font CreateFont(string typename, bool embedFontFile)
-    {
-        if (null == typename) throw new ArgumentNullException(nameof(typename));
-        if (!FontUtilities.IsStandardFont(typename)) throw
-            new ArgumentException("The font type name must be one of the standard PDF fonts.", nameof(typename));
 
-        var fontRef = CreateObjectReference();
-        var font = new StandardFont(fontRef, CreateResourceName("F"), typename, embedFontFile);
-
-        _documentResources.Add(font);
-
-        return font;
-    }
 
     /// <summary>
     /// Creates a new Form resource and returns a reference that identifies the form XObject.
@@ -740,7 +740,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// </summary>
     private async Task WriteDocumentResources()
     {
-        //var fonts = new List<Font>();
+        var fonts = new List<Font>();
         var images = new List<Image>();
         //var customResources = new List<CustomResource>();
         //var forms = new List<Form>();
@@ -752,7 +752,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             switch (resource.Type)
             {
                 case PdfResourceType.Font:
-                    //fonts.Add((Font)resource);
+                    fonts.Add((Font)resource);
                     break;
                 case PdfResourceType.Image:
                     images.Add((Image)resource);
@@ -767,9 +767,28 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         }
 
         // if (customResources.Any()) await WriteCustomResources(customResources);
-        // if (fonts.Any()) await WriteFonts(fonts);
+        if (fonts.Any()) await WriteFonts(fonts);
         if (images.Count != 0) await WriteImages(images);
         // if (forms.Any()) await WriteForms(forms);    
+    }
+
+    /// <summary>
+    /// Writes the font definitions for each of the fonts used in the document.
+    /// </summary>
+    /// <param name="fonts">The fonts to write.</param>
+    private async Task WriteFonts(IEnumerable<Font> fonts)
+    {
+        // We go through the fonts in the list and determine if they are standard fonts or
+        // trueType ones. TrueType fonts can be references or embedded fonts.
+        foreach (Font font in fonts)
+        {
+            if (FontUtilities.IsStandardFont(font.Typename))
+                await WriteStandardFont(font);
+            else
+            {
+                throw new NotImplementedException("TrueType fonts are not yet supported.");
+            }
+        }
     }
 
     /// <summary>
@@ -961,6 +980,20 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     }
 
     /// <summary>
+    /// Writes a font definition for a standard font that is used in the document.
+    /// </summary>
+    /// <param name="font">The font to write.</param>
+    private async Task WriteStandardFont(Font font)
+    {
+        await OpenObject(font.ObjectReference, "Font");
+        await _writer.WriteLineAsync("\t/Subtype\t/Type1");
+        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
+        await _writer.WriteLineAsync($"\t/Name\t/{font.Identifier}");
+        await _writer.WriteLineAsync("\t/Encoding\t/WinAnsiEncoding");
+        await CloseObject();
+    }
+
+    /// <summary>
     /// /// Writes the trailer.
     /// </summary>
     private async Task WriteTrailer()
@@ -992,24 +1025,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         }
     }
 
-    /// <summary>
-    /// Writes the font definitions for each of the fonts used in the document.
-    /// </summary>
-    /// <param name="fonts">The fonts to write.</param>
-    private async Task WriteFonts(IEnumerable<Font> fonts)
-    {
-        // We go through the fonts in the list and determine if they are standard fonts or
-        // trueType ones. TrueType fonts can be references or embedded fonts.
-        foreach (Font font in fonts)
-        {
-            if (FontUtilities.IsStandardFont(font.Typename))
-                await WriteStandardFont(font);
-            else
-            {
-                await WriteTrueTypeFont((TrueTypeFont)font);
-            }
-        } // for each font
-    } // WriteFonts()
+
 
 /// <summary>
     /// Writes the form definitions and corresponding content,
@@ -1118,19 +1134,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         } // for each image
     } // WriteImages()
 
-/// <summary>
-    /// Writes a font definition for a standard font that is used in the document.
-    /// </summary>
-    /// <param name="font">The font to write.</param>
-    private async Task WriteStandardFont(Font font)
-    {
-        await OpenObject(font.ObjectReference, "Font");
-        await _writer.WriteLineAsync("\t/Subtype\t/Type1");
-        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
-        await _writer.WriteLineAsync($"\t/Name\t/{font.Identifier}");
-        await _writer.WriteLineAsync("\t/Encoding\t/WinAnsiEncoding");
-        await CloseObject();
-    }
+
 
     /// <summary>
     /// Writes a font definition for a TrueType font that is used in the document.
