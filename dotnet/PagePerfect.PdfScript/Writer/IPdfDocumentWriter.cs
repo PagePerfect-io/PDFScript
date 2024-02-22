@@ -103,6 +103,13 @@ public interface IPdfDocumentWriter
     public Font CreateStandardFont(string typename, object? tag = null);
 
     /// <summary>
+    /// Creates a new TrueType Font resource and returns a reference that identifies the font.
+    /// </summary>
+    /// <param name="path">The path to the font's program.</param>
+    /// <returns>Reference to the newly created font.</returns>
+    public Font CreateTrueTypeFont(string path, object? tag = null);
+
+    /// <summary>
     /// Flushes the PDF stream.
     /// </summary>
     public void Flush();

@@ -229,4 +229,32 @@ public class PdfDocumentWriterTests
 
     }
     #endregion
+
+    #region TrueType font tests
+    /// <summary>
+    /// The PdfDocumentWriter should support a TrueType font resource and should output it
+    /// in the document.
+    /// </summary>
+    [Fact]
+    public async Task ShouldOutputTrueTypeFontInFile()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var andes = writer.CreateTrueTypeFont("Data/Andes-Black.ttf");
+        writer.AddResourceToPage(andes);
+        await writer.WriteRawContent($"BT /{andes.Identifier} 24 Tf 100 100 Td (Hello, world!) Tj ET\r\n");
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+        await writer.Close();
+
+        stream.Seek(0, SeekOrigin.Begin);
+        File.WriteAllBytes("Data/truetype-font-test.pdf", stream.ToArray());
+    }
+    #endregion
+
 }

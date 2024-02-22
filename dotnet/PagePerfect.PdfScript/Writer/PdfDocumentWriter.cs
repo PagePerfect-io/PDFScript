@@ -239,6 +239,21 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     }
 
     /// <summary>
+    /// Creates a new TrueType Font resource and returns a reference that identifies the font.
+    /// </summary>
+    /// <param name="path">The path to the font's program.</param>
+    /// <returns>Reference to the newly created font.</returns>
+    public Font CreateTrueTypeFont(string path, object? tag = null)
+    {
+        var fontRef = CreateObjectReference();
+        var font = TrueTypeFont.Parse(fontRef, CreateResourceName("F"), path, tag);
+
+        _documentResources.Add(font);
+
+        return font;
+    }
+
+    /// <summary>
     /// Flushes the PDF stream.
     /// </summary>
     public void Flush()
@@ -533,22 +548,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         return form;
     }
 
-    /// <summary>
-    /// Creates a new TrueType Font resource and returns a reference that identifies the font.
-    /// </summary>
-    /// <param name="path">The path to the font's program.</param>
-    /// <returns>Reference to the newly created font.</returns>
-    public Font CreateTrueTypeFont(string path)
-    {
-        if (null == path) throw new ArgumentNullException(nameof(path));
-
-        var fontRef = CreateObjectReference();
-        var font = TrueTypeFont.Parse(fontRef, CreateResourceName("F"), path);
-
-        _documentResources.Add(font);
-
-        return font;
-    }
+    
 
     /// <summary>
     /// Opens a drawing canvas on the current page. This method is only valid if a page is currently open,
@@ -767,7 +767,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         }
 
         // if (customResources.Any()) await WriteCustomResources(customResources);
-        if (fonts.Any()) await WriteFonts(fonts);
+        if (fonts.Count != 0) await WriteFonts(fonts);
         if (images.Count != 0) await WriteImages(images);
         // if (forms.Any()) await WriteForms(forms);    
     }
@@ -786,7 +786,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
                 await WriteStandardFont(font);
             else
             {
-                throw new NotImplementedException("TrueType fonts are not yet supported.");
+                await WriteTrueTypeFont((TrueTypeFont)font);
             }
         }
     }
@@ -1002,6 +1002,84 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         await _writer.WriteLineAsync($"<< /Size {this._xref.GetLength() + 1} /Root {this._catalogReference} >>");
     }
 
+    /// <summary>
+    /// Writes a font definition for a TrueType font that is used in the document.
+    /// </summary>
+    /// <param name="font">The font to write.</param>
+    private async Task WriteTrueTypeFont(TrueTypeFont font)
+    {
+        await OpenObject(font.ObjectReference, "Font");
+        await _writer.WriteLineAsync("\t/Subtype\t/TrueType");
+        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
+        await _writer.WriteLineAsync($"\t/Name\t/{font.Identifier}");
+
+        // If this font is not a symbolic font then output the Windows encoding.
+        if (4 != font.Info.Flags)
+            await _writer.WriteLineAsync("\t/Encoding\t/WinAnsiEncoding");
+
+        // Create a new font descriptor reference and add that to the header.
+        PdfObjectReference descriptorRef = CreateObjectReference();
+        await _writer.WriteLineAsync($"\t/FontDescriptor\t{descriptorRef.ToString(PdfObjectNotation.Reference)}");
+
+        // Write the widths of the glyphs that correspond to the characters in the range 32-255.
+        var firstChar = 32;
+        var lastChar = 255;
+        await _writer.WriteLineAsync($"\t/FirstChar\t{firstChar}");
+        await _writer.WriteLineAsync($"\t/LastChar\t{lastChar}");
+        await _writer.WriteAsync("\t/Widths\t[");
+        var charsPrinted = 0;
+
+        // Fill a byte array with the numbers, and convert it to unicode numbers.
+        // We then look up the character widths for them.
+        var bytes = new byte[lastChar - firstChar + 1];
+        for (var c = firstChar; c <= lastChar; c++) bytes[c - firstChar] = (byte)c;
+        var characters = System.Text.ASCIIEncoding.Default.GetChars(bytes);
+
+        foreach (var ch in characters)
+        {
+            if (0 == charsPrinted % 16) await _writer.WriteAsync("\r\n\t\t");
+            await _writer.WriteAsync($"{font.Info.GetCharacterWidth(ch) * 1000 / font.Info.UnitsPerEm} ");
+
+            charsPrinted++;
+        }
+        await _writer.WriteAsync(" ]\r\n");
+        await CloseObject();
+
+        // We now open the font descriptor object.
+        await OpenObject(descriptorRef, "FontDescriptor");
+        await _writer.WriteLineAsync($"\t/Ascent\t{font.Info.Ascender * 1000 / font.Info.UnitsPerEm}");
+        await _writer.WriteLineAsync($"\t/Descent\t{font.Info.Descender * 1000 / font.Info.UnitsPerEm}");
+        await _writer.WriteLineAsync($"\t/CapHeight\t{font.Info.CapHeight * 1000 / font.Info.UnitsPerEm}");
+        await _writer.WriteLineAsync($"\t/Flags\t{font.Info.Flags}");
+        await _writer.WriteLineAsync($"\t/FontBBox\t[{font.Info.XMin * 1000 / font.Info.UnitsPerEm} {font.Info.YMin * 1000 / font.Info.UnitsPerEm} {font.Info.XMax * 1000 / font.Info.UnitsPerEm} {font.Info.YMax * 1000 / font.Info.UnitsPerEm}]");
+        await _writer.WriteLineAsync($"\t/FontName\t/{font.Typename.Replace(' ', '-')}");
+        await _writer.WriteLineAsync($"\t/ItalicAngle\t{font.Info.ItalicAngle}");
+        await _writer.WriteLineAsync($"\t/StemV\t{font.Info.StemV * 1000 / font.Info.UnitsPerEm}");
+
+        // If the font is embedded we will add the font file to the stream.
+        var fontProgramRef = CreateObjectReference();
+        await _writer.WriteLineAsync($"\t/FontFile2\t{fontProgramRef.ToString(PdfObjectNotation.Reference)}");
+
+        await CloseObject();
+
+        // We add the font program now (if neccessary)
+        if (false == fontProgramRef.IsEmpty())
+        {
+            await WriteTrueTypeFontProgram(font, fontProgramRef);
+        }
+    }
+
+    /// <summary>
+    /// Writes a font definition for a TrueType font that is used in the document.
+    /// </summary>
+    /// <param name="font">The font to write.</param>
+    /// <param name="ref">The object reference of the font program.</param>
+    private async Task WriteTrueTypeFontProgram(TrueTypeFont font, PdfObjectReference @ref)
+    {
+        await OpenObject(@ref);
+        await font.WriteFontProgram(_writer);
+    }
+
     /*
     /// <summary>
     /// Writes the custom resources to the PDF stream.
@@ -1136,86 +1214,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
 
 
 
-    /// <summary>
-    /// Writes a font definition for a TrueType font that is used in the document.
-    /// </summary>
-    /// <param name="font">The font to write.</param>
-    private async Task WriteTrueTypeFont(TrueTypeFont font)
-    {
-        await OpenObject(font.ObjectReference, "Font");
-        await _writer.WriteLineAsync("\t/Subtype\t/TrueType");
-        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
-        await _writer.WriteLineAsync($"\t/Name\t/{font.Identifier}");
-
-        // If this font is not a symbolic font then output the Windows encoding.
-        if (4 != font.Info.Flags)
-            await _writer.WriteLineAsync("\t/Encoding\t/WinAnsiEncoding");
-
-        // Create a new font descriptor reference and add that to the header.
-        PdfObjectReference descriptorRef = CreateObjectReference();
-        await _writer.WriteLineAsync($"\t/FontDescriptor\t{descriptorRef.ToString(PdfObjectNotation.Reference)}");
-
-        // Write the widths of the glyphs that correspond to the characters in the range 32-255.
-        const int firstChar = 32;
-        const int lastChar = 255;
-        await _writer.WriteLineAsync($"\t/FirstChar\t{firstChar}");
-        await _writer.WriteLineAsync($"\t/LastChar\t{lastChar}");
-        await _writer.WriteAsync("\t/Widths\t[");
-        int charsPrinted = 0;
-
-        // Fill a byte array with the numbers, and convert it to unicode numbers.
-        // We then look up the character widths for them.
-        byte[] bytes = new byte[lastChar - firstChar + 1];
-        for (int c = firstChar; c <= lastChar; c++) bytes[c - firstChar] = (byte)c;
-        char[] characters = System.Text.ASCIIEncoding.Default.GetChars(bytes);
-
-        foreach (char ch in characters)
-        {
-            if (0 == charsPrinted % 16) await _writer.WriteAsync("\r\n\t\t");
-            await _writer.WriteAsync($"{font.Info.GetCharacterWidth(ch) * 1000 / font.Info.UnitsPerEm} ");
-
-            charsPrinted++;
-        }
-        await _writer.WriteAsync(" ]\r\n");
-        await CloseObject();
-
-        // We now open the font descriptor object.
-        await OpenObject(descriptorRef, "FontDescriptor");
-        await _writer.WriteLineAsync($"\t/Ascent\t{font.Info.Ascender * 1000 / font.Info.UnitsPerEm}");
-        await _writer.WriteLineAsync($"\t/Descent\t{font.Info.Descender * 1000 / font.Info.UnitsPerEm}");
-        await _writer.WriteLineAsync($"\t/CapHeight\t{font.Info.CapHeight * 1000 / font.Info.UnitsPerEm}");
-        await _writer.WriteLineAsync($"\t/Flags\t{font.Info.Flags}");
-        await _writer.WriteLineAsync($"\t/FontBBox\t[{font.Info.XMin * 1000 / font.Info.UnitsPerEm} {font.Info.YMin * 1000 / font.Info.UnitsPerEm} {font.Info.XMax * 1000 / font.Info.UnitsPerEm} {font.Info.YMax * 1000 / font.Info.UnitsPerEm}]");
-        await _writer.WriteLineAsync($"\t/FontName\t/{font.Typename.Replace(' ', '-')}");
-        await _writer.WriteLineAsync($"\t/ItalicAngle\t{font.Info.ItalicAngle}");
-        await _writer.WriteLineAsync($"\t/StemV\t{font.Info.StemV * 1000 / font.Info.UnitsPerEm}");
-
-        // If the font is embedded we will add the font file to the stream.
-        PdfObjectReference fontProgramRef = PdfObjectReference.Empty;
-        if (font.IsEmbedded)
-        {
-            fontProgramRef = CreateObjectReference();
-            await _writer.WriteLineAsync($"\t/FontFile2\t{fontProgramRef.ToString(PdfObjectNotation.Reference)}");
-        }
-        await CloseObject();
-
-        // We add the font program now (if neccessary)
-        if (false == fontProgramRef.IsEmpty())
-        {
-            await WriteTrueTypeFontProgram(font, fontProgramRef);
-        }
-    }
-
-    /// <summary>
-    /// Writes a font definition for a TrueType font that is used in the document.
-    /// </summary>
-    /// <param name="font">The font to write.</param>
-    /// <param name="ref">The object reference of the font program.</param>
-    private async Task WriteTrueTypeFontProgram(TrueTypeFont font, PdfObjectReference @ref)
-    {
-        await OpenObject(@ref);
-        await font.WriteFontProgram(_writer);
-    }
+    
     */
     #endregion
 

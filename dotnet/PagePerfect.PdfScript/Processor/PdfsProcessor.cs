@@ -157,13 +157,11 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         // Download the font locally.
         var localPath = await DownloadResourceToTempFile(location);
 
-        throw new NotSupportedException("This method is not yet implemented.");
-
         // Add the font to the document.
-        //var font = _writer.CreateTrueTypeFont(localPath);
-        //_localResources[location] = font;
+        var font = _writer.CreateTrueTypeFont(localPath);
+        _localResources[location] = font;
 
-        //return font;
+        return font;
     }
 
     /// <summary>

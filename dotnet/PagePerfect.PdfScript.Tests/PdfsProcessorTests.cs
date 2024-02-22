@@ -242,6 +242,7 @@ public class PdfsProcessorTests
         await writer.Received(3).WriteRawContent("/Img1 Do\r\n");
 
     }
+
     /// <summary>
     /// The processor should throw an exception when the named image cannot be
     /// found, when placing an image.
@@ -379,6 +380,95 @@ public class PdfsProcessorTests
     #endregion
 
     #region TrueType Fonts
+    /// <summary>
+    /// The processor should include a standard font in the document.
+    /// </summary>
+    [Fact]
+    public async Task ShouldPlaceTextWithTrueTypeFont()
+    {
+        using var stream = S("# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a call to CreateTrueTypeFont and AddResourceToPage
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+    }
+
+    /// <summary>
+    /// The Processor should embed a TrueType font only once, even when used multiple times
+    /// across pages.
+    /// </summary>
+    [Fact]
+    public async Task ShouldEmbedTrueTypeFontOnceWhenUsedMultipleTimes()
+    {
+        using var stream = S("# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+    "BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET " +
+    "BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET " +
+    "endpage " +
+    "BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET ");
+
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect three calls to AddResourceToPage 
+        // We expect one call to  CreateTrueTypeFont
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(3).AddResourceToPage(Arg.Any<PdfResourceReference>());
+
+        // We expect three writes of the 'Tf' operation.
+        await writer.Received(3).WriteRawContent("/F1 24 Tf\r\n");
+
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the named image cannot be
+    /// found, when placing an image.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenTrueTypeFontNotFoundWhenPlacingText()
+    {
+        using var stream = S("BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the name
+    /// does not match the /Image resource type.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceNotFontWhenPlacingText()
+    {
+        using var stream = S("# resource /ManropeRegular /Image (https://font.com/fake)\r\n" +
+        "BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when the image
+    /// could not be located.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenResourceNotLocatedWhenPlacingText()
+    {
+        using var stream = S("# resource /ManropeRegular /Font (https://font.unknown)\r\n" +
+        "BT /ManropeRegular 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+    }
     #endregion
 
     #region Unicode text
