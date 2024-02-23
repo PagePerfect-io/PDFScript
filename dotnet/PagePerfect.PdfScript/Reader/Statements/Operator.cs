@@ -290,4 +290,15 @@ public enum Operator
     /// </summary>
     Unknown,
 
+
+
+    // Additional instructions introduced in PDFScript
+    // ===============================================
+    /// <summary>
+    /// The rr operator - constructs a rounded rectangle.
+    /// </summary>
+    /// The re operator (PDF1-7, p.227) - adds a rectangle
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Path)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Path)]
+    rr
 }

@@ -418,6 +418,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
             //              await WriteTjOperation(op);
             //            break;
 
+            case Operator.rr:
+                await WriteRoundedRectangleOperation(op);
+                break;
+
             default:
                 await WriteStandardGraphicsOperation(op);
                 break;
@@ -436,6 +440,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
             case Operator.m:
             case Operator.re:
+            case Operator.rr:
                 _currentGraphicsObject = GraphicsObject.Path;
                 break;
 
@@ -452,6 +457,58 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 _currentGraphicsObject = GraphicsObject.Page;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Writes a rounded rectangle (rr) operation to the output stream. This method
+    /// outputs path instructions that approximate a rounded rectangle.
+    /// </summary>
+    /// <param name="op">The operation.</param>
+    private async Task WriteRoundedRectangleOperation(GraphicsOperation op)
+    {
+        // We resolve the operands.
+        var x = ResolveOperand(op.Operands[0]).GetNumber();
+        var y = ResolveOperand(op.Operands[1]).GetNumber();
+        var w = ResolveOperand(op.Operands[2]).GetNumber();
+        var h = ResolveOperand(op.Operands[3]).GetNumber();
+        var rx = ResolveOperand(op.Operands[4]).GetNumber();
+        var ry = op.Operands.Length > 5 ? ResolveOperand(op.Operands[5]).GetNumber() : rx;
+
+        rx = (float)Math.Min(rx, w / 2f);
+        ry = (float)Math.Min(ry, h / 2f);
+
+        var ellipseModifier = (float)(4 * ((Math.Sqrt(2) - 1) / 3f));
+        var cx = rx * ellipseModifier;
+        var cy = rx * ellipseModifier;
+
+        // We output the path instructions.
+        // Bottom edge
+        await _writer.WriteRawContent($"{x + rx:F2} {y:F2} m\r\n");
+        await _writer.WriteRawContent($"{x + w - rx:F2} {y:F2} l\r\n");
+
+        // Bottom right curve
+        await _writer.WriteRawContent($"{x + w - rx + cx:F2} {y:F2} {x + w:F2} {y + ry - cy:F2} {x + w:F2} {y + ry:F2} c\r\n");
+
+        // Right hand edge
+        await _writer.WriteRawContent($"{x + w:F2} {y + h - ry:F2} l\r\n");
+
+        // Top right curve
+        await _writer.WriteRawContent($"{x + w:F2} {y + h - ry + cy:F2} {x + w - rx + cx:F2} {y + h:F2} {x + w - rx:F2} {y + h:F2} c\r\n");
+
+        // Top edge
+        await _writer.WriteRawContent($"{x + rx:F2} {y + h:F2} l\r\n");
+
+        // Top left curve
+        await _writer.WriteRawContent($"{x + rx - cx:F2} {y + h:F2} {x:F2} {y + h - ry + cy:F2} {x:F2} {y + h - ry:F2} c\r\n");
+
+        // Left hand edge
+        await _writer.WriteRawContent($"{x:F2} {y + ry:F2} l\r\n");
+
+        // Bottom left curve
+        await _writer.WriteRawContent($"{x:F2} {y + ry - cy:F2} {x + rx - cx:F2} {y:F2} {x + rx:F2} {y:F2} c\r\n");
+
+        // Close the path.
+        await _writer.WriteRawContent($"h\r\n");
     }
 
     /// <summary>

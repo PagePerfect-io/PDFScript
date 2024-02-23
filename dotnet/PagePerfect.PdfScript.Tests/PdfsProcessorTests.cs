@@ -474,6 +474,35 @@ public class PdfsProcessorTests
     #region Unicode text
     #endregion
 
+    #region Additional graphics instructions
+    /// <summary>
+    /// The processor should support the 'rr' operation, which is used to
+    /// draw or fill a rounded rectangle.
+    /// </summary>
+    [Fact]
+    public async Task ShouldSupportRoundedRectangles()
+    {
+
+        using var stream = S("10 100 300 300 16 rr f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to write curves and lines that approximate
+        // a rounded rectangle.
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("26.00 100.00 m\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("294.00 100.00 l\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("310.00 116.00 c\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("310.00 384.00 l\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("294.00 400.00 c\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("26.00 400.00 l\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("10.00 384.00 c\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("10.00 116.00 l\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("26.00 100.00 c\r\n")));
+        await writer.Received(1).WriteRawContent("h\r\n");
+    }
+    #endregion
+
     #region Real world examples
     /// <summary>
     /// The processor should output a PDF with some lines on it.
