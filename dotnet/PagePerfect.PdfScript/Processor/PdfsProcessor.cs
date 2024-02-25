@@ -393,6 +393,36 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Writes an ellipse (ell) operation to the output stream. This method
+    /// outputs path instructions that approximate a circle or ellipse.
+    /// </summary>
+    /// <param name="op">The operation.</param>
+    private async Task WriteEllipseOperation(GraphicsOperation op)
+    {
+        // We resolve the operands.
+        var x = ResolveOperand(op.Operands[0]).GetNumber();
+        var y = ResolveOperand(op.Operands[1]).GetNumber();
+        var w = ResolveOperand(op.Operands[2]).GetNumber();
+        var h = ResolveOperand(op.Operands[3]).GetNumber();
+
+        if (w <= 0 || h <= 0) return;
+
+        var rx = w / 2f;
+        var ry = h / 2f;
+        var ellipseModifier = (float)(4 * ((Math.Sqrt(2) - 1) / 3f));
+        var cx = rx * ellipseModifier;
+        var cy = rx * ellipseModifier;
+
+        // We output the path instructions.
+        await _writer.WriteRawContent($"{x + rx:F2} {y:F2} m\r\n");
+        await _writer.WriteRawContent($"{x + rx + cx:F2} {y:F2} {x + w:F2} {y + ry - cy:F2} {x + w:F2} {y + ry:F2} c\r\n");
+        await _writer.WriteRawContent($"{x + w:F2} {y + ry + cy:F2} {x + rx + cx:F2} {y + h:F2} {x + rx:F2} {y + h:F2} c\r\n");
+        await _writer.WriteRawContent($"{x + rx - cx:F2} {y + h:F2} {x:F2} {y + ry + cy:F2} {x:F2} {y + ry:F2} c\r\n");
+        await _writer.WriteRawContent($"{x:F2} {y + ry - cy:F2} {x + rx - cx:F2} {y:F2} {x + rx:F2} {y:F2} c\r\n");
+        await _writer.WriteRawContent($"h\r\n");
+    }
+
+    /// <summary>
     /// Writes a graphics operation to the output stream. This method detects
     /// special cases, such as Do and Tj, and dispatches appropriately, before
     /// defaulting to a standard output of the operands and operator.
@@ -422,6 +452,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await WriteRoundedRectangleOperation(op);
                 break;
 
+            case Operator.ell:
+                await WriteEllipseOperation(op);
+                break;
+
             default:
                 await WriteStandardGraphicsOperation(op);
                 break;
@@ -441,6 +475,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
             case Operator.m:
             case Operator.re:
             case Operator.rr:
+            case Operator.ell:
                 _currentGraphicsObject = GraphicsObject.Path;
                 break;
 
@@ -476,6 +511,12 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
         rx = (float)Math.Min(rx, w / 2f);
         ry = (float)Math.Min(ry, h / 2f);
+
+        if (rx <= 0 || ry <= 0)
+        {
+            await _writer.WriteRawContent($"{x:F2} {y:F2} {w:F2} {h:F2} re\r\n");
+            return;
+        }
 
         var ellipseModifier = (float)(4 * ((Math.Sqrt(2) - 1) / 3f));
         var cx = rx * ellipseModifier;

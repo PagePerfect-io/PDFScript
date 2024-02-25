@@ -501,6 +501,46 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("26.00 100.00 c\r\n")));
         await writer.Received(1).WriteRawContent("h\r\n");
     }
+
+    /// <summary>
+    /// The processor should default to outputting a 're' 
+    /// if the 'rr' operation has 0 radius.
+    /// </summary>
+    [Fact]
+    public async Task ShouldDefaultToUnroundedRectangle()
+    {
+        using var stream = S("10 100 300 300 0 rr f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a 're' in the output because this rectangle isn't rounded.
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("re\r\n")));
+        await writer.DidNotReceive().WriteRawContent(Arg.Is<string>(s => s.Contains("rr\r\n")));
+    }
+
+    /// <summary>
+    /// The processor should support the 'ell' operation, which is used to
+    /// draw or fill a circle or ellipse.
+    /// </summary>
+    [Fact]
+    public async Task ShouldSupportEllipse()
+    {
+
+        using var stream = S("10 100 300 300 ell S");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to write curves that approximate
+        // an ellipse
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("160.00 100.00 m\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("310.00 250.00 c\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("160.00 400.00 c\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains(" 10.00 250.00 c\r\n")));
+        await writer.Received(1).WriteRawContent(Arg.Is<string>(s => s.Contains("160.00 100.00 c\r\n")));
+        await writer.Received(1).WriteRawContent("h\r\n");
+    }
     #endregion
 
     #region Real world examples
