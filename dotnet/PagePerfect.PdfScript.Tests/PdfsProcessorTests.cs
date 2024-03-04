@@ -86,6 +86,55 @@ public class PdfsProcessorTests
 
     #endregion
 
+    #region Page sizes and templates
+
+    /// <summary>
+    /// The processor should create A3 pages using the "page" statement.
+    /// </summary>
+    [Fact]
+    public async Task ShouldCreateA3Page()
+    {
+        using var stream = S("/A3 page 10 10 m 100 100 l S");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a new page instruction, with an A3 size.
+        await writer.Received(1).OpenPage(841, 595 * 2, DisplayOrientation.Regular);
+    }
+
+    /// <summary>
+    /// The processor should create custom-size pages using the "page" statement.
+    /// </summary>
+    [Fact]
+    public async Task ShouldCreateCustomSizePage()
+    {
+        using var stream = S("1000 1000 page 10 10 m 100 100 l S");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a new page instruction, with an 1000x1000 pt size.
+        await writer.Received(1).OpenPage(1000, 1000, DisplayOrientation.Regular);
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when a page size is invalid.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenPageSizeInvalid()
+    {
+        using var stream = S("/Unknown page 10 10 m 100 100 l S");
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+
+        using var stream2 = S("0 0 page 10 10 m 100 100 l S");
+        writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream2, writer));
+
+    }
+    #endregion
+
     #region Basic graphics instructions
     /// <summary>
     /// </summary>

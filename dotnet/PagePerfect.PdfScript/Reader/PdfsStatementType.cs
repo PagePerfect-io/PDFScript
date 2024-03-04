@@ -10,4 +10,6 @@ public enum PdfsStatementType
     GraphicsOperation,
 
     EndPageStatement,
+
+    PageStatement
 }

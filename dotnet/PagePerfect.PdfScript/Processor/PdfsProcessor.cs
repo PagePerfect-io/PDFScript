@@ -86,6 +86,12 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                     _state = PdfsProcessorState.BeforePage;
                     break;
 
+                case PdfsStatementType.PageStatement:
+                    // We can do this at any stage as the statement
+                    // affects subsequent content, not the current state.
+                    ProcessPageStatement((_reader.Statement as PageStatement)!);
+                    break;
+
                 case PdfsStatementType.GraphicsOperation:
                     // We validate and output the graphics operation.
                     // If we're not on a page, we open a page.
@@ -173,7 +179,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// <returns>The location of the downloaded file.</returns>
     private static async Task<string> DownloadResourceToTempFile(string location)
     {
-        var localPath = Path.GetTempFileName();
+        var localPath = Path.ChangeExtension(Path.GetTempFileName(), Path.GetExtension(location));
 
         if (File.Exists(location))
         {
@@ -228,6 +234,26 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         await _writer.OpenContentStream();
 
         _currentGraphicsObject = GraphicsObject.Page;
+    }
+
+    /// <summary>
+    /// Processes the page statement. This method will validate
+    /// that a named page exists, or that the page dimensions are valid.
+    /// </summary>
+    /// <param name="page">The page statement.</param>
+    private void ProcessPageStatement(PageStatement page)
+    {
+        if (page.Template is not null)
+        {
+            // Look up default page templates
+        }
+        else
+        {
+            if (page.Width <= 0 || page.Height <= 0) throw new
+                PdfsProcessorException("Page dimensions must be positive.");
+
+            // set page size
+        }
     }
 
     private void ProcessPrologStatement(PrologStatement prolog)

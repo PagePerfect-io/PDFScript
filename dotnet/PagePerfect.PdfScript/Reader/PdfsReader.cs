@@ -182,6 +182,9 @@ public class PdfsReader(Stream stream)
         {
             // Look for flow control statement, such as "endpage"
             "endpage" => new EndPageStatement(),
+
+            "page" => PageStatement.Parse(_operandStack),
+
             // Look for conditional statements, such as "if"
 
             // Look for graphics operations, such as "re" and "Q"
@@ -200,7 +203,7 @@ public class PdfsReader(Stream stream)
     /// <exception cref="PdfsReaderException">The variable cannot be found.</exception>
     private TypeResolvedVariable ResolveVariableType(string variable)
     {
-        if(!_variableTypes.TryGetValue(variable, out var datatype)) throw
+        if (!_variableTypes.TryGetValue(variable, out var datatype)) throw
             new PdfsReaderException($"Variable '{variable}' is not defined.");
 
         return new TypeResolvedVariable(variable, datatype);
