@@ -16,5 +16,10 @@ public enum ColourSpace
     /// The DeviceCMYK colour space defines colours using four components; cyan, magenta, yellow, and black.
     /// These colours represent colours used in ink-based output, such as when printing a document.
     /// </summary>
-    DeviceCMYK
+    DeviceCMYK,
+
+    /// <summary>
+    /// The DeviceGray colour space defines colours using a single component; a shade of gray.
+    /// </summary>
+    DeviceGray
 }

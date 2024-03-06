@@ -257,4 +257,34 @@ public class PdfDocumentWriterTests
     }
     #endregion
 
+    #region Linear and radial gradient pattern tests
+    /// <summary>
+    /// The PdfDocumentWriter should support adding a linear gradient pattern to the document.
+    /// </summary>
+    [Fact]
+    public async Task ShouldAddLinearGradientPattern()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var pattern = writer.CreateLinearGradientPattern(
+            new PdfRectangle(0, 0, 100, 00),
+            [new(ColourSpace.DeviceRGB, 1, 0, 0), new(ColourSpace.DeviceRGB, 0, 1, 0)],
+            [0, 1.0f]);
+
+        writer.AddResourceToPage(pattern);
+        await writer.WriteRawContent($"/Pattern CS /{pattern.Identifier} SCN 0 0 100 100 re f\r\n");
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+        await writer.Close();
+
+        stream.Seek(0, SeekOrigin.Begin);
+        File.WriteAllBytes("Data/linear-gradient-pattern-test.pdf", stream.ToArray());
+    }
+    #endregion
+
 }

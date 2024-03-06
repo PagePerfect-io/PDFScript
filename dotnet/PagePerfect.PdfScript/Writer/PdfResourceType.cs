@@ -9,6 +9,6 @@ public enum PdfResourceType
 
     Form,
     Image,
-
+    Pattern,
     Custom
 }

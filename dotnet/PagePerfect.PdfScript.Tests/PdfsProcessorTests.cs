@@ -592,6 +592,30 @@ public class PdfsProcessorTests
     }
     #endregion
 
+    #region Linear and radial gradient patterns
+    /// <summary>
+    /// The processor should support creation of a linear gradient pattern.
+    /// </summary>
+    [Fact]
+    public async Task ShouldSupportLinearGradientPattern()
+    {
+        using var stream = S("# pattern /GreenYellow /LinearGradient <<" +
+            "/Rect [0, 0, 595, 842] " +
+            "/C0 [0, 1, 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">> " +
+            "/GreenYellow gs " +
+            "10 10 100 100 re  f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to create a linear gradient resource, and add it to the page.
+        // We expec a call to set the pattern as the fill colour.
+    }
+    #endregion
+
     #region Real world examples
     /// <summary>
     /// The processor should output a PDF with some lines on it.

@@ -1,6 +1,7 @@
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Writer.Resources.Fonts;
 using PagePerfect.PdfScript.Writer.Resources.Images;
+using PagePerfect.PdfScript.Writer.Resources.Patterns;
 
 namespace PagePerfect.PdfScript.Writer;
 
@@ -203,6 +204,37 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         _documentResources.Add(image);
 
         return image;
+    }
+
+    /// <summary>
+    /// Creates a new linear gradient pattern and returns a reference that identifies the pattern.
+    /// This method expects an array of colours and an array of stops. The number of stops must be
+    /// the same as the number of colours. Each colour must use the same colour space.
+    /// </summary>
+    /// <param name="rect">The bounding rectangle of the gradient.</param>
+    /// <param name="colours">The colours used in the gradient.</param>
+    /// <param name="stops">The stops on the gradient.</param>
+    /// <returns>A reference to the newly created pattern.</returns>
+    public LinearGradientPattern CreateLinearGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null)
+    {
+        if (colours.Length < 2)
+            throw new ArgumentException("The number of colours must be at least 2.");
+
+        if (colours.Length != stops.Length)
+            throw new ArgumentException("The number of colours and stops must be the same.");
+
+        var cs = colours[0].ColourSpace;
+        if (!colours.All(c => c.ColourSpace == cs))
+            throw new ArgumentException("All colours must use the same colour space.");
+
+        var clamped = stops.Select(s => Math.Clamp(s, 0, 1)).ToArray();
+
+        var patternRef = CreateObjectReference();
+        var pattern = new LinearGradientPattern(patternRef, CreateResourceName("P"), cs, rect, colours, stops, tag);
+
+        _documentResources.Add(pattern);
+
+        return pattern;
     }
 
     /// <summary>
@@ -742,6 +774,8 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     {
         var fonts = new List<Font>();
         var images = new List<Image>();
+        var patterns = new List<Pattern>();
+
         //var customResources = new List<CustomResource>();
         //var forms = new List<Form>();
 
@@ -757,6 +791,9 @@ public class PdfDocumentWriter : IPdfDocumentWriter
                 case PdfResourceType.Image:
                     images.Add((Image)resource);
                     break;
+                case PdfResourceType.Pattern:
+                    patterns.Add((Pattern)resource);
+                    break;
                 case PdfResourceType.Form:
                     //forms.Add((Form)resource);
                     break;
@@ -769,6 +806,8 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         // if (customResources.Any()) await WriteCustomResources(customResources);
         if (fonts.Count != 0) await WriteFonts(fonts);
         if (images.Count != 0) await WriteImages(images);
+        if (patterns.Count != 0) await WritePatterns(patterns);
+
         // if (forms.Any()) await WriteForms(forms);    
     }
 
@@ -869,6 +908,16 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             await _writer.WriteLineAsync();
             await WriteImage(image);
         } // for each image
+    }
+
+    /// <summary>
+    /// Writes a linear gradient pattern to the document. This method writes the relevant
+    /// objects to the document stream.
+    /// </summary>
+    /// <param name="pattern">The linear gradient pattern.</param>
+    private async Task WriteLinearGradientPattern(LinearGradientPattern pattern)
+    {
+
     }
 
     /// <summary>
@@ -977,6 +1026,26 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     private async Task WritePages()
     {
         await WriteObject(_pagesReference!, $"<< /Type /Pages /Count {_pages.Count} /Kids [ {string.Join(" ", _pages)} ] >>");
+    }
+
+    /// <summary>
+    /// Writes linear or radial gradient patterns to the document.
+    /// </summary>
+    /// <param name="patterns">The patterns.</param>
+    private async Task WritePatterns(IEnumerable<Pattern> patterns)
+    {
+        foreach (var p in patterns)
+        {
+            switch (p.PatternType)
+            {
+                case PatternType.LinearGradient:
+                    await WriteLinearGradientPattern((LinearGradientPattern)p);
+                    break;
+                default:
+                    throw new NotSupportedException("Only linear gradients are supported in this version of the library.");
+
+            }
+        }
     }
 
     /// <summary>

@@ -74,6 +74,7 @@ public abstract class PdfResourceReference
             PdfResourceType.Font => "Font",
             PdfResourceType.Image => "XObject",
             PdfResourceType.Form => "XObject",
+            PdfResourceType.Pattern => "Pattern",
             _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
         };
     }
