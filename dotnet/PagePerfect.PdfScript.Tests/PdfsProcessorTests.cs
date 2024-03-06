@@ -46,7 +46,7 @@ public class PdfsProcessorTests
 
         // We should have opened a page and closed it.
         // We should also have closed the document.
-        await writer.Received(1).OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.Received(1).OpenPage(595, 842, DisplayOrientation.Regular);
         await writer.Received(1).CloseIfNeeded();
     }
 
@@ -62,7 +62,7 @@ public class PdfsProcessorTests
         await PdfsProcessor.Process(stream, writer);
 
         // We expect two pages to be opened, and one of those explicitly closed.
-        await writer.Received(2).OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.Received(2).OpenPage(595, 842, DisplayOrientation.Regular);
         await writer.Received(1).ClosePage();
         await writer.Received(1).CloseIfNeeded();
     }
@@ -79,7 +79,7 @@ public class PdfsProcessorTests
         await PdfsProcessor.Process(stream, writer);
 
         // We expect three pages.
-        await writer.Received(3).OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.Received(3).OpenPage(595, 842, DisplayOrientation.Regular);
         await writer.Received(2).ClosePage();
         await writer.Received(1).CloseIfNeeded();
     }
@@ -100,7 +100,7 @@ public class PdfsProcessorTests
         await PdfsProcessor.Process(stream, writer);
 
         // We expect a new page instruction, with an A3 size.
-        await writer.Received(1).OpenPage(841, 595 * 2, DisplayOrientation.Regular);
+        await writer.Received(1).OpenPage(842, 1191, DisplayOrientation.Regular);
     }
 
     /// <summary>

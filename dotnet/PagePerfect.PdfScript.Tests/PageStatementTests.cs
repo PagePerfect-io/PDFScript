@@ -23,8 +23,7 @@ public class PageStatementTests
 
         var page = PageStatement.Parse(operands);
         Assert.NotNull(page);
-        Assert.Single(page.Operands);
-        Assert.Equal(new PdfsValue("/A4", PdfsValueKind.Name), page.Operands[0]);
+        Assert.Equal("/A4", page.Template);
     }
 
     /// <summary>
@@ -39,9 +38,9 @@ public class PageStatementTests
 
         var page = PageStatement.Parse(operands);
         Assert.NotNull(page);
-        Assert.Equal(2, page.Operands.Length);
-        Assert.Equal(new PdfsValue(595), page.Operands[0]);
-        Assert.Equal(new PdfsValue(841), page.Operands[1]);
+        Assert.Null(page.Template);
+        Assert.Equal(595, page.Width);
+        Assert.Equal(841, page.Height);
     }
 
     /// <summary>

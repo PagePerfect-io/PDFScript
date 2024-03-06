@@ -24,7 +24,9 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private Dictionary<string, PdfsVariable> _variables = [];
     private Dictionary<string, PdfResourceReference> _localResources = [];
     private GraphicsObject _currentGraphicsObject = GraphicsObject.Page;
+    private (float Width, float Height) _pageSize = (595, 842);
     private static readonly string[] _reservedNames;
+    private static readonly PageTemplate[] _pageTemplates;
     #endregion
 
 
@@ -39,6 +41,8 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     {
         // TODO add font names to reserved names.
         _reservedNames = ["/Type", "/Name", "/Length", "/Image", "/Font", "/Form", "/XObject", "/String", "/Number", "/Name", "/List", "/Dictionary", "/Boolean"];
+
+        _pageTemplates = [new("/A0", 2384, 3370), new("/A1", 1684, 2384), new("/A2", 1191, 1684), new("/A3", 842, 1191), new("/A4", 595, 842), new("/A5", 420, 595), new("/A6", 298, 420), new("/Letter", 612, 791), new("/Legal", 612, 1009), new("/Tabloid", 791, 1225)];
     }
     #endregion
 
@@ -230,7 +234,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         if (_currentGraphicsObject != GraphicsObject.Page) throw new
             PdfsProcessorException("You must close a text or path object before opening a new page.");
 
-        await _writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await _writer.OpenPage(_pageSize.Width, _pageSize.Height, DisplayOrientation.Regular);
         await _writer.OpenContentStream();
 
         _currentGraphicsObject = GraphicsObject.Page;
@@ -245,14 +249,17 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     {
         if (page.Template is not null)
         {
-            // Look up default page templates
+            var template = _pageTemplates.FirstOrDefault(t => t.Name == page.Template) ?? throw new
+                PdfsProcessorException($"Page template '{page.Template}' is not defined.");
+
+            _pageSize = (template.Width, template.Height);
         }
         else
         {
             if (page.Width <= 0 || page.Height <= 0) throw new
                 PdfsProcessorException("Page dimensions must be positive.");
 
-            // set page size
+            _pageSize = (page.Width, page.Height);
         }
     }
 
