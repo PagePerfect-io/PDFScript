@@ -1,6 +1,8 @@
 using System.Text;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Reader.Statements;
+using PagePerfect.PdfScript.Writer;
+using PagePerfect.PdfScript.Writer.Resources.Patterns;
 
 namespace PagePerfect.PdfScript.Tests;
 
@@ -211,6 +213,38 @@ public class PdfsReaderTests
             var reader = new PdfsReader(stream);
             await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
         }
+    }
+
+    /// <summary>
+    /// The PdfsReader should be able to read a "pattern" prolog statement.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadPatternResourcePrologStatement()
+    {
+        using var stream = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0, 0, 595, 842] " +
+            "/C0 [0, 1, 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">> \r\n");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.PrologStatement, reader.Statement.Type);
+        Assert.IsType<Reader.Statements.Prolog.PatternDeclaration>(reader.Statement);
+        var pattern = (Reader.Statements.Prolog.PatternDeclaration)reader.Statement;
+        Assert.Equal(PrologStatementType.PatternDeclaration, pattern.PrologType);
+        Assert.Equal(PatternType.LinearGradient, pattern.PatternType);
+        Assert.Equal("/GreenYellow", pattern.Name);
+        Assert.Equal(new PdfRectangle(0, 0, 595, 842), pattern.BoundingRectangle);
+        Assert.Equal(2, pattern.Colours.Length);
+        Assert.Equal(ColourSpace.DeviceRGB, pattern.ColourSpace);
+        Assert.Equal(new Colour(ColourSpace.DeviceRGB, 0, 1, 0.2f), pattern.Colours[0]);
+        Assert.Equal(new Colour(ColourSpace.DeviceRGB, 0.8f, 0.8f, 0.2f), pattern.Colours[1]);
+        Assert.Equal(2, pattern.Stops.Length);
+        Assert.Equal(0.0f, pattern.Stops[0]);
+        Assert.Equal(1.0f, pattern.Stops[1]);
     }
     #endregion
 

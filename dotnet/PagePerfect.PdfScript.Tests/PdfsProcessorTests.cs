@@ -605,14 +605,17 @@ public class PdfsProcessorTests
             "/C1 [0.8 0.8 0.2]" +
             "/Stops [0.0 1.0]" +
             ">> " +
-            "/GreenYellow gs " +
-            "10 10 100 100 re  f");
+            "/Pattern cs /GreenYellow scn " +
+            "10 10 100 100 re f");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
         await PdfsProcessor.Process(stream, writer);
 
         // We expect calls to create a linear gradient resource, and add it to the page.
-        // We expec a call to set the pattern as the fill colour.
+        // We expect a call to set the pattern as the fill colour.
+        writer.Received(1).CreateLinearGradientPattern(Arg.Any<PdfRectangle>(), Arg.Any<Colour[]>(), Arg.Any<float[]>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("/GreenYellow scn\r\n");
     }
     #endregion
 

@@ -917,7 +917,37 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// <param name="pattern">The linear gradient pattern.</param>
     private async Task WriteLinearGradientPattern(LinearGradientPattern pattern)
     {
+        // Gradients use three objects, so we create reference for them now.
+        // Then it's just a question of mapping the data in the pattern instance to
+        // the required PDF spec.
+        var shadingRef = CreateObjectReference();
+        var functionRef = CreateObjectReference();
+        var exponent = 1f;
 
+        await OpenObject(pattern.ObjectReference, "Pattern");
+        await WriteRawContent($"\t/PatternType 2 /Shading {shadingRef}\r\n");
+        await CloseObject();
+
+
+        await OpenObject(shadingRef, "Shading");
+        await WriteRawContent($"\t/ShadingType 2\r\n\t/ColorSpace /{pattern.ColourSpace}\r\n");
+        await WriteRawContent($"\t/Function {functionRef}\r\n");
+        await WriteRawContent($"\t/Extend [true true]\r\n");
+        await WriteRawContent($"\t/Coords [{pattern.Rectangle.Left:F2} {pattern.Rectangle.Bottom:F2} {pattern.Rectangle.Right:F2} {pattern.Rectangle.Top:F2}]");
+        await CloseObject();
+
+        await OpenObject(functionRef, "Function");
+        await WriteRawContent($"\t/FunctionType 2 /Domain [0 1]\r\n");
+        for (var c = 0; c < pattern.Colours.Length; c++)
+        {
+            var col = pattern.Colours[c];
+            await WriteRawContent($"\t/C{c} [");
+            for (var i = 0; i < col.Components.Length; i++) await WriteRawContent($"{col.Components[i]:F3} ");
+
+            await WriteRawContent("]\r\n");
+        }
+        await WriteRawContent($"\t/N {exponent:F2}");
+        await CloseObject();
     }
 
     /// <summary>

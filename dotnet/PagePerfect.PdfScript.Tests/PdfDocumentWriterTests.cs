@@ -272,18 +272,48 @@ public class PdfDocumentWriterTests
         await writer.NextContentStream();
 
         var pattern = writer.CreateLinearGradientPattern(
-            new PdfRectangle(0, 0, 100, 00),
+            new PdfRectangle(0, 0, 100, 100),
             [new(ColourSpace.DeviceRGB, 1, 0, 0), new(ColourSpace.DeviceRGB, 0, 1, 0)],
             [0, 1.0f]);
 
         writer.AddResourceToPage(pattern);
-        await writer.WriteRawContent($"/Pattern CS /{pattern.Identifier} SCN 0 0 100 100 re f\r\n");
+        await writer.WriteRawContent($"/Pattern cs /{pattern.Identifier} scn 0 0 100 100 re f\r\n");
         await writer.CloseContentStream();
         await writer.ClosePage();
         await writer.Close();
 
         stream.Seek(0, SeekOrigin.Begin);
         File.WriteAllBytes("Data/linear-gradient-pattern-test.pdf", stream.ToArray());
+    }
+
+    /// <summary>
+    /// The PdfDocumentWriter should throw an exception when creating a linear gradient
+    /// that's invalid.
+    /// </summary>
+    [Fact]
+    public void ShouldThrowWhenLinearGradientInvalid()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+
+        // Mixed colour spaces
+        Assert.Throws<ArgumentException>(() => writer.CreateLinearGradientPattern(
+            new PdfRectangle(0, 0, 100, 00),
+            [new(ColourSpace.DeviceRGB, 1, 0, 0), new(ColourSpace.DeviceCMYK, 0, 1, 0, 1)],
+            [0, 1.0f]));
+
+        // Number of stops and colours don't match
+        Assert.Throws<ArgumentException>(() => writer.CreateLinearGradientPattern(
+            new PdfRectangle(0, 0, 100, 00),
+            [new(ColourSpace.DeviceRGB, 1, 0, 0), new(ColourSpace.DeviceRGB, 0, 1, 0, 1)],
+            [0, 0.5f, 1.0f]));
+
+        // Not enough colours
+        Assert.Throws<ArgumentException>(() => writer.CreateLinearGradientPattern(
+            new PdfRectangle(0, 0, 100, 00),
+            [new(ColourSpace.DeviceRGB, 1, 0, 0)],
+            [0]));
     }
     #endregion
 
