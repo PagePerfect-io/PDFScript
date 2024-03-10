@@ -41,6 +41,8 @@ public abstract class PrologStatement(PrologStatementType type) : PdfsStatement(
         {
             "var" => await ParseVarDeclaration(lexer),
             "resource" => await ParseResourceDeclaration(lexer),
+            "pattern" => await ParsePatternDeclaration(lexer),
+            "color" => await ParseColourDeclaration(lexer),
             _ => throw new PdfsReaderException($"Expected 'var' or 'resource', but found '{keyword}'.")
         };
     }
@@ -51,6 +53,52 @@ public abstract class PrologStatement(PrologStatementType type) : PdfsStatement(
     // Private implementation
     // ======================
     #region Private implementation
+    /// <summary>
+    /// Parses a colour declaration (# color ...) from the specified lexer, after the 'color' keyword
+    /// has already been read.
+    /// </summary>
+    /// <param name="lexer">The lexer to read tokens from.</param>
+    /// <returns>The ColourDeclaration instance.</returns>
+    private static async Task<PrologStatement> ParseColourDeclaration(PdfsLexer lexer)
+    {
+        var name = await lexer.ReadName() ?? throw
+            new PdfsReaderException($"Expected a name, but found '{lexer.TokenType}'.");
+
+        var cs = await lexer.ReadName() ?? throw
+            new PdfsReaderException($"Expected a name for colour space, but found '{lexer.TokenType}'.");
+
+        // We support a few colour spaces.
+        var colourSpace = cs switch
+        {
+            "/DeviceRGB" => ColourSpace.DeviceRGB,
+            "/DeviceCMYK" => ColourSpace.DeviceCMYK,
+            "/DeviceGray" => ColourSpace.DeviceGray,
+            _ => throw new PdfsReaderException($"Invalid colour space '{cs}'."),
+        };
+
+        // We expect one, three, or four numbers for the colour components.
+        var components = new List<float>();
+        var numOfComponents = colourSpace switch
+        {
+            ColourSpace.DeviceRGB => 3,
+            ColourSpace.DeviceCMYK => 4,
+            ColourSpace.DeviceGray => 1,
+            _ => throw new PdfsReaderException($"Invalid colour space '{cs}'."),
+        };
+
+        do
+        {
+            var num = await lexer.ReadNumber();
+            if (null == num) throw new PdfsReaderException($"Expected a number for colour component {components.Count}.");
+            components.Add(num.Value);
+        } while (components.Count < numOfComponents);
+
+        if (components.Count != numOfComponents)
+            throw new PdfsReaderException($"Expected {numOfComponents} components for colours in the {colourSpace} colour space.");
+
+        return new ColourDeclaration(name, new(colourSpace, [.. components]));
+    }
+
     /// <summary>
     /// Parses a var declaration (# var ...) from the specified lexer, after the 'var' keyword
     /// has already been read. 
@@ -113,6 +161,93 @@ public abstract class PrologStatement(PrologStatementType type) : PdfsStatement(
             default:
                 throw new PdfsReaderException($"Invalid variable type '{type}'.");
         }
+    }
+
+    /// <summary>
+    /// Parses a pattern declaration (# pattern ...) from the specified lexer, after
+    /// the 'pattern' keyword has already been read.
+    /// </summary>
+    /// <param name="lexer">The lexer to read tokens from.</param>
+    /// <returns>The PatternDeclaration instance.</returns>
+    private static async Task<PrologStatement> ParsePatternDeclaration(PdfsLexer lexer)
+    {
+        var name = await lexer.ReadName() ?? throw
+            new PdfsReaderException($"Expected a name, but found '{lexer.TokenType}'.");
+
+        var type = await lexer.ReadName() ?? throw
+            new PdfsReaderException($"Expected a name for pattern type, but found '{lexer.TokenType}'.");
+
+        var cs = await lexer.ReadName() ?? throw
+            new PdfsReaderException($"Expected a name for colour space, but found '{lexer.TokenType}'.");
+
+        // We support a few pattern types.
+        var patternType = type switch
+        {
+            "/LinearGradient" => PatternType.LinearGradient,
+            "/RadialGradient" => PatternType.RadialGradient,
+            _ => throw new PdfsReaderException($"Invalid pattern type '{type}'."),
+        };
+
+        // We support a few colour spaces.
+        var colourSpace = cs switch
+        {
+            "/DeviceRGB" => ColourSpace.DeviceRGB,
+            "/DeviceCMYK" => ColourSpace.DeviceCMYK,
+            "/DeviceGray" => ColourSpace.DeviceGray,
+            _ => throw new PdfsReaderException($"Invalid colour space '{cs}'."),
+        };
+
+        // We expect a dictionary with a bounding box, and an array of colours and stops.
+        if (false == await lexer.ReadToken(PdfsTokenType.DictionaryStart)) throw
+            new PdfsReaderException("Expected a dictionary for pattern declaration.");
+
+        var dict = (await PdfsValue.ReadDictionary(lexer))?.GetDictionary() ?? throw
+            new PdfsReaderException("Expected a dictionary for pattern declaration.");
+
+        // Parse the /Rect array.
+        if (!dict.TryGetValue("/Rect", out var rectValue) || PdfsValueKind.Array != rectValue.Kind)
+            throw new PdfsReaderException("Expected a bounding box for pattern declaration.");
+        var rectArray = rectValue.GetArray();
+        var rect = new PdfRectangle(
+            rectArray[0].GetNumber(),
+            rectArray[1].GetNumber(),
+            rectArray[2].GetNumber(),
+            rectArray[3].GetNumber());
+
+        // Parse the /C0, /C1, /C2, etc. colours.
+        var componentCount = colourSpace switch
+        {
+            ColourSpace.DeviceRGB => 3,
+            ColourSpace.DeviceCMYK => 4,
+            ColourSpace.DeviceGray => 1,
+            _ => throw new PdfsReaderException($"Invalid colour space '{cs}'."),
+        };
+
+        var colours = new List<Colour>();
+        do
+        {
+            if (!dict.TryGetValue($"/C{colours.Count}", out var colourValue))
+                break;
+
+            if (PdfsValueKind.Array != colourValue.Kind)
+                throw new PdfsReaderException($"Expected an array for colour {colours.Count}.");
+
+            var colourArray = colourValue.GetArray();
+            var components = colourArray.Select(c => c.GetNumber()).ToArray();
+            if (components.Length != componentCount)
+                throw new PdfsReaderException($"Expected {componentCount} components for colours in the {colourSpace} colour space.");
+            colours.Add(new Colour(colourSpace, components));
+        } while (true);
+
+        // Parse the stops.
+        if (!dict.TryGetValue("/Stops", out var stopsValue) || PdfsValueKind.Array != stopsValue.Kind)
+            throw new PdfsReaderException("Expected an array for stops.");
+
+        var stops = stopsValue.GetArray().Select(s => s.GetNumber()).ToArray();
+        if (stops.Length != colours.Count)
+            throw new PdfsReaderException("The number of stops must match the number of colours.");
+
+        return new PatternDeclaration(name, patternType, colourSpace, rect, [.. colours], stops);
     }
 
     /// <summary>

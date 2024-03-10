@@ -1,4 +1,4 @@
-namespace PagePerfect.PdfScript.Writer;
+namespace PagePerfect.PdfScript;
 
 /// <summary>
 /// The Colour class rpresents a colour in a specific colour space.
@@ -17,6 +17,53 @@ public class Colour(ColourSpace cs, params float[] components)
     /// The components of the colour.
     /// </summary>
     public float[] Components { get; } = components;
+    #endregion
+
+
+
+    // Base class overrides
+    // ====================
+    #region Object overrides
+    /// <summary>
+    /// Determines if this instance is equal to another instance.
+    /// The two instances are equal if they are both Colour isntances,
+    /// and the colour space and components are equal.
+    /// </summary>
+    /// <param name="obj">The other instance.</param>
+    /// <returns>True if the instances are equal; false otherwise.</returns>
+    public override bool Equals(object? obj)
+    {
+        if (false == obj is Colour other) return false;
+
+        if (other.ColourSpace != ColourSpace || other.Components.Length != Components.Length) return false;
+
+        for (int i = 0; i < Components.Length; i++)
+        {
+            if (other.Components[i] != Components[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the hash code for this instance.
+    /// </summary>
+    /// <returns>The hash code.</returns>
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(ColourSpace, Components);
+    }
+
+    /// <summary>
+    /// Retrieves a string representation of this instance.
+    /// </summary>
+    /// <returns>The string.</returns>
+    override public string ToString()
+    {
+        return $"{ColourSpace} ({string.Join(", ", Components)})";
+    }
     #endregion
 
 

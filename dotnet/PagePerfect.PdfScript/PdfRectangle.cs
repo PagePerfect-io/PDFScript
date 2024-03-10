@@ -1,8 +1,7 @@
-namespace PagePerfect.PdfScript.Writer;
+namespace PagePerfect.PdfScript;
 
 /// <summary>
-/// The PdfRectangle structure represents a rectangle in PDF documents. The rectangle is used in drawing
-/// operations but also in object properties such as the page's MediaBox.
+/// The PdfRectangle structure represents a rectangle in PDFScript files as well as PDF documents.
 /// </summary>
 /// <remarks>
 /// PDF documents use a coordinate space with an origin at the bottom left corner of the page. This means that

@@ -4,6 +4,7 @@ using PagePerfect.PdfScript.Reader.Statements;
 using PagePerfect.PdfScript.Reader.Statements.Prolog;
 using PagePerfect.PdfScript.Writer;
 using PagePerfect.PdfScript.Writer.Resources.Fonts;
+using PagePerfect.PdfScript.Writer.Resources.Patterns;
 
 namespace PagePerfect.PdfScript.Processor;
 
@@ -17,12 +18,14 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     // Private fields
     // ==============
     #region Private fields
-    private PdfsReader _reader = new(source);
-    private IPdfDocumentWriter _writer = writer;
+    private readonly PdfsReader _reader = new(source);
+    private readonly IPdfDocumentWriter _writer = writer;
     private PdfsProcessorState _state = PdfsProcessorState.Initial;
-    private Dictionary<string, ResourceDeclaration> _resourceDeclarations = [];
-    private Dictionary<string, PdfsVariable> _variables = [];
-    private Dictionary<string, PdfResourceReference> _localResources = [];
+    private readonly Dictionary<string, ColourDeclaration> _colourDeclarations = [];
+    private readonly Dictionary<string, PatternDeclaration> _patternDeclarations = [];
+    private readonly Dictionary<string, ResourceDeclaration> _resourceDeclarations = [];
+    private readonly Dictionary<string, PdfsVariable> _variables = [];
+    private readonly Dictionary<string, PdfResourceReference> _localResources = [];
     private GraphicsObject _currentGraphicsObject = GraphicsObject.Page;
     private (float Width, float Height) _pageSize = (595, 842);
     private static readonly string[] _reservedNames;
@@ -225,6 +228,19 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Determines if a resource name is unique. This method checks that the name
+    /// isn't already in use by a resource, variable, or other declaration.
+    /// </summary>
+    /// <param name="name">The resource name.</param>
+    /// <returns>True if the name isn't yet in use. False otherwise.</returns>
+    private bool IsUniqueResourceName(string name)
+    {
+        return !_resourceDeclarations.ContainsKey(name) &&
+               !_patternDeclarations.ContainsKey(name) &&
+               !_colourDeclarations.ContainsKey(name);
+    }
+
+    /// <summary>
     /// Opens a new page in the document.
     /// </summary>
     private async Task OpenNewPage()
@@ -273,6 +289,14 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
             case PrologStatementType.ResourceDeclaration:
                 TryAddResourceDeclaration((prolog as ResourceDeclaration)!);
+                break;
+
+            case PrologStatementType.PatternDeclaration:
+                TryAddPatternDeclaration((prolog as PatternDeclaration)!);
+                break;
+
+            case PrologStatementType.ColourDeclaration:
+                TryAddColourDeclaration((prolog as ColourDeclaration)!);
                 break;
         }
     }
@@ -346,6 +370,30 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Tries to resolve a pattern. This method will find a pattern by name, and
+    /// then check if a resource instance has been created yet. If not, it
+    /// will create the resource and add it to the document.
+    /// If the name does not match a pattern, we return a Null reference.
+    /// </summary>
+    /// <param name="name">The name of the pattern.</param>
+    /// <returns>The Pattern resource.</returns>
+    private bool TryResolvePattern(string name, out Pattern? pattern)
+    {
+        if (!_patternDeclarations.TryGetValue(name, out var declaration)) { pattern = null; return false; }
+
+        if (_localResources.TryGetValue(name, out var resource)) { pattern = (Pattern)resource!; return true; }
+
+        pattern = declaration.PatternType switch
+        {
+            Reader.Statements.Prolog.PatternType.RadialGradient => _writer.CreateRadialGradientPattern(declaration.BoundingRectangle, declaration.Colours, declaration.Stops),
+            Reader.Statements.Prolog.PatternType.LinearGradient => _writer.CreateLinearGradientPattern(declaration.BoundingRectangle, declaration.Colours, declaration.Stops),
+            _ => throw new PdfsProcessorException($"Pattern type '{declaration.PatternType}' is not supported.")
+        };
+        _localResources[name] = pattern;
+        return true;
+    }
+
+    /// <summary>
     /// Resolves a resource. This method resolves a resource by name, and
     /// returns its location. If the resource cannot be found, or is not of
     /// the expected type, this method throws an exception.
@@ -382,11 +430,44 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         throw new PdfsProcessorException($"Variable '{name}' is not defined.");
     }
 
+    /// <summary>
+    /// Tries to add a colour declaration to the state machine. This method checks that
+    /// a colour, pattern or other resource does not already exist, and that the name is not
+    /// a reserved name.
+    /// </summary>
+    /// <param name="statement"></param>
+    private void TryAddColourDeclaration(ColourDeclaration statement)
+    {
+        if (!IsUniqueResourceName(statement.Name)) throw
+            new PdfsProcessorException($"A resource with name '{statement.Name}' is already defined.");
+
+        if (_reservedNames.Contains(statement.Name)) throw
+            new PdfsProcessorException($"'{statement.Name}' is a reserved name.");
+
+        _colourDeclarations[statement.Name] = statement;
+    }
+
+    /// <summary>
+    /// Tries to add a pattern declaration to the state machine. This method checks that
+    /// a pattern or other resource does not already exist, and that the name is not
+    /// a reserved name.
+    /// </summary>
+    /// <param name="statement"></param>
+    private void TryAddPatternDeclaration(PatternDeclaration statement)
+    {
+        if (!IsUniqueResourceName(statement.Name)) throw
+            new PdfsProcessorException($"A resource with name '{statement.Name}' is already defined.");
+
+        if (_reservedNames.Contains(statement.Name)) throw
+            new PdfsProcessorException($"'{statement.Name}' is a reserved name.");
+
+        _patternDeclarations[statement.Name] = statement;
+    }
+
     private void TryAddResourceDeclaration(ResourceDeclaration statement)
     {
-        if (_resourceDeclarations.ContainsKey(statement.Name)) throw
-            new PdfsProcessorException($"Resource '{statement.Name}' is already defined.");
-
+        if (!IsUniqueResourceName(statement.Name)) throw
+            new PdfsProcessorException($"A resource with name '{statement.Name}' is already defined.");
 
         if (_reservedNames.Contains(statement.Name)) throw
             new PdfsProcessorException($"'{statement.Name}' is a reserved name.");
@@ -456,6 +537,61 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Writes a "scn" or "SCN" operation to the output stream.
+    /// If this operation is of the format \Name scn, then we will
+    /// treat it differently to the PDF standard:
+    /// If the name resolves to a pattern, we create the necessary pattern
+    /// resource in the document, as well as add it to the page. We also
+    /// set the colour space to /Pattern.
+    /// If the name resolves to a colour, we set the colour space
+    /// to match the colour's space, and output the colour.
+    /// /// </summary>
+    /// <param name="op">The Graphics operation.</param>
+    private async Task WriteSetColourNewOperation(GraphicsOperation op)
+    {
+        var name = ResolveOperand(op.Operands[0]);
+        if (PdfsValueKind.Name != name.Kind || op.Operands.Length > 1)
+        {
+            await WriteStandardGraphicsOperation(op);
+        }
+        else
+        {
+            // Is this a pattern?
+            if (TryResolvePattern(name.GetString(), out var pattern))
+            {
+                var csOp = op.Operator == Operator.scn ? Operator.cs : Operator.CS;
+
+                // Add the pattern to the current page.
+                _writer.AddResourceToPage(pattern!);
+
+                // Set the colour space to /Pattern and output the pattern.
+                await _writer.WriteRawContent($"/Pattern {csOp} /{pattern!.Identifier} {op.GetOperatorName()}\r\n");
+            }
+            else if (_colourDeclarations.TryGetValue(name.GetString(), out var colourDeclaration))
+            {
+                var col = colourDeclaration!.Colour;
+                Operator colOp;
+                switch (col.ColourSpace)
+                {
+                    case ColourSpace.DeviceRGB:
+                        colOp = op.Operator == Operator.scn ? Operator.rg : Operator.RG;
+                        await _writer.WriteRawContent($"{col.Components[0]:F2} {col.Components[1]:F2} {col.Components[2]:F2} {colOp}\r\n");
+                        break;
+                    case ColourSpace.DeviceCMYK:
+                        colOp = op.Operator == Operator.scn ? Operator.k : Operator.K;
+                        await _writer.WriteRawContent($"{col.Components[0]:F2} {col.Components[1]:F2} {col.Components[2]:F2} {col.Components[3]:F2} {colOp}\r\n");
+                        break;
+                    case ColourSpace.DeviceGray:
+                        colOp = op.Operator == Operator.scn ? Operator.g : Operator.G;
+                        await _writer.WriteRawContent($"{col.Components[0]:F2} {colOp}\r\n");
+                        break;
+                }
+            }
+            else throw new PdfsProcessorException($"Resource '{name.GetString()}' is not defined.");
+        }
+    }
+
+    /// <summary>
     /// Writes a graphics operation to the output stream. This method detects
     /// special cases, such as Do and Tj, and dispatches appropriately, before
     /// defaulting to a standard output of the operands and operator.
@@ -487,6 +623,11 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
             case Operator.ell:
                 await WriteEllipseOperation(op);
+                break;
+
+            case Operator.scn:
+            case Operator.SCN:
+                await WriteSetColourNewOperation(op);
                 break;
 
             default:

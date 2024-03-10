@@ -1,8 +1,9 @@
-namespace PagePerfect.PdfScript.Writer;
+namespace PagePerfect.PdfScript;
 
 /// <summary>
-/// The ColourSpace enumeration lists the possible colour spaces supported by the Writer.
-/// This enumeration is used by the ImageData class to specify the colour space of an image.
+/// The ColourSpace enumeration lists the possible colour spaces supported by PDFScript.
+/// It is used to define the colour space of a colour in a PDF document, as well as the colour
+/// space for images and patterns. 
 /// </summary>
 public enum ColourSpace
 {

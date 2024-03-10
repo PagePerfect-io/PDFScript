@@ -4,6 +4,7 @@ using PagePerfect.PdfScript.Processor;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Writer;
 using PagePerfect.PdfScript.Writer.Resources.Fonts;
+using PagePerfect.PdfScript.Writer.Resources.Patterns;
 
 namespace PagePerfect.PdfScript.Tests;
 
@@ -594,14 +595,21 @@ public class PdfsProcessorTests
 
     #region Linear and radial gradient patterns
     /// <summary>
-    /// The processor should support creation of a linear gradient pattern.
+    /// The processor should throw an exception when a pattern is declared
+    /// with the same name as an existing pattern.
     /// </summary>
     [Fact]
-    public async Task ShouldSupportLinearGradientPattern()
+    public async Task ShouldThrowWhenPatternNameInUse()
     {
-        using var stream = S("# pattern /GreenYellow /LinearGradient <<" +
-            "/Rect [0, 0, 595, 842] " +
-            "/C0 [0, 1, 0.2]  " +
+        using var stream = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">>\r\n" +
+            "# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
             "/C1 [0.8 0.8 0.2]" +
             "/Stops [0.0 1.0]" +
             ">> " +
@@ -609,13 +617,134 @@ public class PdfsProcessorTests
             "10 10 100 100 re f");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
+
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when declaring a pattern with the same name as a
+    /// resource, or vice-versa.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenPatternNameClashWithResourceName()
+    {
+        using var stream = S("# resource /GreenYellow /Image (greenyellow.jpg)\r\n" +
+            "# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">> " +
+            "/Pattern cs /GreenYellow scn " +
+            "10 10 100 100 re f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer));
+
+        using var stream2 = S(
+            "# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">> " +
+            "# resource /GreenYellow /Image (greenyellow.jpg)\r\n" +
+            "/Pattern cs /GreenYellow scn " +
+            "10 10 100 100 re f");
+
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream2, writer));
+
+    }
+
+    /// <summary>
+    /// The processor should support creation of a linear gradient pattern.
+    /// </summary>
+    [Fact]
+    public async Task ShouldSupportLinearGradientPattern()
+    {
+        using var stream = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">> " +
+            "/GreenYellow scn " +
+            "10 10 100 100 re f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateLinearGradientPattern(Arg.Any<PdfRectangle>(), Arg.Any<Colour[]>(), Arg.Any<float[]>())
+            .Returns(new LinearGradientPattern(new PdfObjectReference(1, 0), "GreenYellow", ColourSpace.DeviceRGB, new PdfRectangle(0, 0, 595, 842), [Colour.RGB(0, 1, 0.2f), Colour.RGB(0.8f, 0.8f, 0.2f)], [0.0f, 1.0f]));
+
         await PdfsProcessor.Process(stream, writer);
 
         // We expect calls to create a linear gradient resource, and add it to the page.
         // We expect a call to set the pattern as the fill colour.
         writer.Received(1).CreateLinearGradientPattern(Arg.Any<PdfRectangle>(), Arg.Any<Colour[]>(), Arg.Any<float[]>());
         writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
-        await writer.Received(1).WriteRawContent("/GreenYellow scn\r\n");
+        await writer.Received(1).WriteRawContent("/Pattern cs /GreenYellow scn\r\n");
+    }
+
+    /// <summary>
+    /// The processor should support creation of a radial gradient pattern.
+    /// </summary>
+    [Fact]
+    public async Task ShouldSupportRadialGradientPattern()
+    {
+        using var stream = S("# pattern /GreenYellow /RadialGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
+            "/C1 [0.8 0.8 0.2]" +
+            "/Stops [0.0 1.0]" +
+            ">> " +
+            "/GreenYellow scn " +
+            "10 10 100 100 re f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateRadialGradientPattern(Arg.Any<PdfRectangle>(), Arg.Any<Colour[]>(), Arg.Any<float[]>())
+            .Returns(new RadialGradientPattern(new PdfObjectReference(1, 0), "GreenYellow", ColourSpace.DeviceRGB, new PdfRectangle(0, 0, 595, 842), [Colour.RGB(0, 1, 0.2f), Colour.RGB(0.8f, 0.8f, 0.2f)], [0.0f, 1.0f]));
+
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to create a linear gradient resource, and add it to the page.
+        // We expect a call to set the pattern as the fill colour.
+        writer.Received(1).CreateRadialGradientPattern(Arg.Any<PdfRectangle>(), Arg.Any<Colour[]>(), Arg.Any<float[]>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("/Pattern cs /GreenYellow scn\r\n");
+    }
+    #endregion
+
+    #region Colour resource declarations
+    /// <summary>
+    /// The processor should support declaration of colour resources, which can be used in
+    /// the scn and SCN operations.
+    /// </summary>
+    [Fact]
+    public async Task ShouldSupportColourResources()
+    {
+        using var stream = S("# color /Green /DeviceRGB 0.2 0.9 0.2 " +
+            "/Green SCN /Green scn " +
+            "10 10 100 100 re f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to the rg and RG operations.
+        await writer.Received(1).WriteRawContent("0.20 0.90 0.20 rg\r\n");
+        await writer.Received(1).WriteRawContent("0.20 0.90 0.20 RG\r\n");
+
+        using var stream2 = S(
+            "# color /Gray500 /DeviceGray 0.5 " +
+            "# color /Magenta /DeviceCMYK 0.2 0.9 0.2 1 " +
+            "/Magenta SCN /Gray500 scn " +
+            "10 10 100 100 re f");
+
+        writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream2, writer);
+
+        // We expect calls to the g and K operations.
+        await writer.Received(1).WriteRawContent("0.50 g\r\n");
+        await writer.Received(1).WriteRawContent("0.20 0.90 0.20 1.00 K\r\n");
     }
     #endregion
 

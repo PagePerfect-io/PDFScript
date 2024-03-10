@@ -1,8 +1,7 @@
 using System.Text;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Reader.Statements;
-using PagePerfect.PdfScript.Writer;
-using PagePerfect.PdfScript.Writer.Resources.Patterns;
+using PagePerfect.PdfScript.Reader.Statements.Prolog;
 
 namespace PagePerfect.PdfScript.Tests;
 
@@ -222,8 +221,8 @@ public class PdfsReaderTests
     public async Task ShouldReadPatternResourcePrologStatement()
     {
         using var stream = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
-            "/Rect [0, 0, 595, 842] " +
-            "/C0 [0, 1, 0.2]  " +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2]  " +
             "/C1 [0.8 0.8 0.2]" +
             "/Stops [0.0 1.0]" +
             ">> \r\n");
@@ -246,6 +245,138 @@ public class PdfsReaderTests
         Assert.Equal(0.0f, pattern.Stops[0]);
         Assert.Equal(1.0f, pattern.Stops[1]);
     }
+
+    /// <summary>
+    /// The PdfsReader should throw an exception when a "pattern" prolog statement
+    /// is invalid.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenPatternDeclarationInvalid()
+    {
+        // Name is must be a name.
+        using var stream = S("# pattern (GreenYellow) /LinearGradient /DeviceRGB <<" +
+        "/Rect [0 0 595 842] " +
+        "/C0 [0 1 0.2]  " +
+        "/C1 [0.8 0.8 0.2]" +
+        "/Stops [0.0 1.0]" +
+        ">> \r\n");
+        var reader = new PdfsReader(stream);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Type must be valid - LinearGradient or RadialGradient
+        using var stream2 = S("# pattern /GreenYellow /Unknown /DeviceRGB <<" +
+        "/Rect [0 0 595 842] " +
+        "/C0 [0 1 0.2]  " +
+        "/C1 [0.8 0.8 0.2]" +
+        "/Stops [0.0 1.0]" +
+        ">> \r\n");
+        reader = new PdfsReader(stream2);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Colour space must be valid - DeviceRGB, DeviceCMYK, or DeviceGray
+        using var stream3 = S("# pattern /GreenYellow /LinearGradient /DeviceInvalid <<" +
+        "/Rect [0 0 595 842] " +
+        "/C0 [0 1 0.2]  " +
+        "/C1 [0.8 0.8 0.2]" +
+        "/Stops [0.0 1.0]" +
+        ">> \r\n");
+        reader = new PdfsReader(stream3);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Missing required fields
+        using var stream4 = S("# pattern /GreenYellow /LinearGradient /DeviceRGB \r\n");
+        reader = new PdfsReader(stream4);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Missing required 'Rect' field
+        using var stream5 = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+        "/C0 [0 1 0.2]  " +
+        "/C1 [0.8 0.8 0.2]" +
+        "/Stops [0.0 1.0]" +
+        ">> \r\n");
+        reader = new PdfsReader(stream5);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Missing required 'Cn' colour fields
+        using var stream6 = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+        "/Rect [0 0 595 842] " +
+        "/Stops [0.0 1.0]" +
+        ">> \r\n");
+        reader = new PdfsReader(stream6);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Incorrect number of components in a colour.
+        using var stream7 = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+            "/Rect [0 0 595 842] " +
+            "/C0 [0 1 0.2 1]  " +
+            "/C1 [0.8 0.8 0.2 1]" +
+            "/Stops [0.0 1.0]" +
+            ">> \r\n");
+        reader = new PdfsReader(stream7);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Missing 'stops' field.
+        using var stream8 = S("# pattern /GreenYellow /LinearGradient /DeviceRGB <<" +
+        "/Rect [0 0 595 842] " +
+        "/C0 [0 1 0.2]  " +
+        "/C1 [0.8 0.8 0.2]" +
+        ">> \r\n");
+        reader = new PdfsReader(stream8);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+    }
+
+    /// <summary>
+    /// The PdfsReader should be able to read a "color" prolog statement.
+    /// </summary>
+    [Fact]
+    public async Task ShouldReadColourResourcePrologStatement()
+    {
+        using var stream = S("# color /Green /DeviceRGB 0.2 0.8 0.2\r\n");
+
+        var reader = new PdfsReader(stream);
+        Assert.True(await reader.Read());
+        Assert.NotNull(reader.Statement);
+        Assert.Equal(PdfsStatementType.PrologStatement, reader.Statement.Type);
+        Assert.IsType<ColourDeclaration>(reader.Statement);
+        var col = (ColourDeclaration)reader.Statement;
+        Assert.Equal(PrologStatementType.ColourDeclaration, col.PrologType);
+        Assert.Equal("/Green", col.Name);
+        Assert.Equal(new Colour(ColourSpace.DeviceRGB, 0.2f, 0.8f, 0.2f), col.Colour);
+    }
+
+    /// <summary>
+    /// The PdfsReader should throw an exception when a "color" prolog statement
+    /// is invalid.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenColourDeclarationInvalid()
+    {
+        // Name is must be a name.
+        using var stream = S("# pattern (Green) /DeviceRGB 0.2 0.8 0.2 \r\n");
+        var reader = new PdfsReader(stream);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Colour space must be valid - DeviceRGB, DeviceCMYK, or DeviceGray
+        using var stream3 = S("# pattern /Green /DeviceInvalid 0.2 0.8 0.2 \r\n");
+        reader = new PdfsReader(stream3);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Missing components
+        using var stream4 = S("# pattern /Green /DeviceRGB \r\n");
+        reader = new PdfsReader(stream4);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Too few components
+        using var stream5 = S("# pattern /Green /DeviceRGB 0.2 0.8\r\n");
+        reader = new PdfsReader(stream5);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+
+        // Invalid value for component
+        using var stream6 = S("# pattern /Green /DeviceRGB 0.2 0.8 (Edwin)\r\n");
+        reader = new PdfsReader(stream6);
+        await Assert.ThrowsAsync<PdfsReaderException>(reader.Read);
+    }
+
     #endregion
 
     #region Reading Graphics instructions - special graphics state

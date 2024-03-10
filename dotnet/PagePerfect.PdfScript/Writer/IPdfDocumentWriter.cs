@@ -94,7 +94,19 @@ public interface IPdfDocumentWriter
     /// <param name="stops">The stops on the gradient.</param>
     /// <param name="tag">An optional tag that can be used to identify the image.</param>
     /// <returns>A reference to the newly created pattern.</returns>
-    public LinearGradientPattern CreateLinearGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null);
+    public Pattern CreateLinearGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null);
+
+    /// <summary>
+    /// Creates a new radial gradient pattern and returns a reference that identifies the pattern.
+    /// This method expects an array of colours and an array of stops. The number of stops must be
+    /// the same as the number of colours. Each colour must use the same colour space.
+    /// </summary>
+    /// <param name="rect">The bounding rectangle of the gradient.</param>
+    /// <param name="colours">The colours used in the gradient.</param>
+    /// <param name="stops">The stops on the gradient.</param>
+    /// <param name="tag">An optional tag that can be used to identify the image.</param>
+    /// <returns>A reference to the newly created pattern.</returns>
+    public Pattern CreateRadialGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null);
 
     /// <summary>
     /// Creates a new object reference that is valid within this document.

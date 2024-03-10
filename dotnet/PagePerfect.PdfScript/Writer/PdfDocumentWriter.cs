@@ -215,7 +215,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// <param name="colours">The colours used in the gradient.</param>
     /// <param name="stops">The stops on the gradient.</param>
     /// <returns>A reference to the newly created pattern.</returns>
-    public LinearGradientPattern CreateLinearGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null)
+    public Pattern CreateLinearGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null)
     {
         if (colours.Length < 2)
             throw new ArgumentException("The number of colours must be at least 2.");
@@ -231,6 +231,38 @@ public class PdfDocumentWriter : IPdfDocumentWriter
 
         var patternRef = CreateObjectReference();
         var pattern = new LinearGradientPattern(patternRef, CreateResourceName("P"), cs, rect, colours, stops, tag);
+
+        _documentResources.Add(pattern);
+
+        return pattern;
+    }
+
+    /// <summary>
+    /// Creates a new radial gradient pattern and returns a reference that identifies the pattern.
+    /// This method expects an array of colours and an array of stops. The number of stops must be
+    /// the same as the number of colours. Each colour must use the same colour space.
+    /// </summary>
+    /// <param name="rect">The bounding rectangle of the gradient.</param>
+    /// <param name="colours">The colours used in the gradient.</param>
+    /// <param name="stops">The stops on the gradient.</param>
+    /// <param name="tag">An optional tag that can be used to identify the image.</param>
+    /// <returns>A reference to the newly created pattern.</returns>
+    public Pattern CreateRadialGradientPattern(PdfRectangle rect, Colour[] colours, float[] stops, object? tag = null)
+    {
+        if (colours.Length < 2)
+            throw new ArgumentException("The number of colours must be at least 2.");
+
+        if (colours.Length != stops.Length)
+            throw new ArgumentException("The number of colours and stops must be the same.");
+
+        var cs = colours[0].ColourSpace;
+        if (!colours.All(c => c.ColourSpace == cs))
+            throw new ArgumentException("All colours must use the same colour space.");
+
+        var clamped = stops.Select(s => Math.Clamp(s, 0, 1)).ToArray();
+
+        var patternRef = CreateObjectReference();
+        var pattern = new RadialGradientPattern(patternRef, CreateResourceName("P"), cs, rect, colours, stops, tag);
 
         _documentResources.Add(pattern);
 
@@ -976,6 +1008,50 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     }
 
     /// <summary>
+    /// Writes a radial gradient pattern to the document. This method writes the relevant
+    /// objects to the document stream.
+    /// </summary>
+    /// <param name="pattern">The radial gradient pattern.</param>
+    private async Task WriteRadialGradientPattern(RadialGradientPattern pattern)
+    {
+        // Gradients use three objects, so we create reference for them now.
+        // Then it's just a question of mapping the data in the pattern instance to
+        // the required PDF spec.
+        var shadingRef = CreateObjectReference();
+        var functionRef = CreateObjectReference();
+        var exponent = 1f;
+
+        var centerX = pattern.Rectangle.Width / 2f;
+        var centerY = pattern.Rectangle.Height / 2f;
+
+        await OpenObject(pattern.ObjectReference, "Pattern");
+        await WriteRawContent($"\t/PatternType 2 /Shading {shadingRef}\r\n");
+        await WriteRawContent($"\t/Matrix [{centerX:F2} 0 0 {centerY:F2} {pattern.Rectangle.Left:F2} {pattern.Rectangle.Bottom:F2}]\r\n");
+        await CloseObject();
+
+
+        await OpenObject(shadingRef, "Shading");
+        await WriteRawContent($"\t/ShadingType 3\r\n\t/ColorSpace /{pattern.ColourSpace}\r\n");
+        await WriteRawContent($"\t/Function {functionRef}\r\n");
+        await WriteRawContent($"\t/Extend [true true]\r\n");
+        await WriteRawContent($"\t/Coords [1 1 {pattern.Stops[0]:F2} 1 1 1]");
+        await CloseObject();
+
+        await OpenObject(functionRef, "Function");
+        await WriteRawContent($"\t/FunctionType 2 /Domain [0 1]\r\n");
+        for (var c = 0; c < pattern.Colours.Length; c++)
+        {
+            var col = pattern.Colours[c];
+            await WriteRawContent($"\t/C{c} [");
+            for (var i = 0; i < col.Components.Length; i++) await WriteRawContent($"{col.Components[i]:F3} ");
+
+            await WriteRawContent("]\r\n");
+        }
+        await WriteRawContent($"\t/N {exponent:F2}");
+        await CloseObject();
+    }
+
+    /// <summary>
     /// Writes an object to the file stream. This method writes the object
     /// and stores its cross reference. It is used to quickly write some
     /// objects in the header and footer of the document.
@@ -1071,6 +1147,11 @@ public class PdfDocumentWriter : IPdfDocumentWriter
                 case PatternType.LinearGradient:
                     await WriteLinearGradientPattern((LinearGradientPattern)p);
                     break;
+
+                case PatternType.RadialGradient:
+                    await WriteRadialGradientPattern((RadialGradientPattern)p);
+                    break;
+
                 default:
                     throw new NotSupportedException("Only linear gradients are supported in this version of the library.");
 

@@ -9,4 +9,8 @@ public enum PrologStatementType
     VarDeclaration,
 
     ResourceDeclaration,
+
+    PatternDeclaration,
+
+    ColourDeclaration,
 }
