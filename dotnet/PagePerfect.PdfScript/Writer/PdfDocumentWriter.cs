@@ -1,3 +1,4 @@
+using System.Text;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Writer.Resources.Fonts;
 using PagePerfect.PdfScript.Writer.Resources.Images;
@@ -516,7 +517,11 @@ public class PdfDocumentWriter : IPdfDocumentWriter
                 break;
 
             case PdfsValueKind.String:
-                await _writer.WriteAsync($"({value.GetString()})");
+                // Encode to Windows Latin-1.
+                await _writer.WriteAsync("(");
+                await _writer.FlushAsync();
+                _stream.Write(Encoding.Latin1.GetBytes(value.GetString()));
+                await _writer.WriteAsync(")");
                 break;
 
             case PdfsValueKind.Array:
