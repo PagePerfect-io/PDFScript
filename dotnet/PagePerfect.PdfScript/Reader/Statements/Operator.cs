@@ -305,5 +305,12 @@ public enum Operator
     /// The ell operator - constructs an ellipse.
     /// </summary>
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Path)]
-    ell
+    ell,
+
+    /// <summary>
+    /// The Tfl operator - flows text on a single line or multiple lines.
+    /// </summary>
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.String, AllowedIn = GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.String, AllowedIn = GraphicsObject.Text)]
+    Tfl,
 }

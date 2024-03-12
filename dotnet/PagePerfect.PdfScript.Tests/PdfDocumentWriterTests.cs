@@ -404,56 +404,5 @@ public class PdfDocumentWriterTests
     }
     #endregion
 
-    #region Measure text
-    /// <summary>
-    /// The PdfDocumentWriter should measure the size of a single line of text.
-    /// </summary>
-    [Fact]
-    public async Task ShouldMeasureSingleLineText()
-    {
-        using var stream = new MemoryStream();
 
-        var writer = new PdfDocumentWriter(stream);
-        await writer.Open();
-        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
-        await writer.OpenContentStream();
-        var font = writer.CreateStandardFont("Helvetica");
-        var text = "Hello, world!";
-        var size = await writer.MeasureTextLine(font, 24, text);
-        Assert.Equal(100, size.Width);
-        Assert.Equal(24, size.Height);
-        Assert.Equal(1, size.Lines);
-
-        writer.AddResourceToPage(font);
-        await writer.CloseContentStream();
-        await writer.ClosePage();
-        await writer.Close();
-    }
-
-    /// <summary>
-    /// The PdfDocumentWriter should measure the size a block of text lines.
-    /// </summary>
-    [Fact]
-    public async Task ShouldMeasureTextLines()
-    {
-        using var stream = new MemoryStream();
-
-        var writer = new PdfDocumentWriter(stream);
-        await writer.Open();
-        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
-        await writer.OpenContentStream();
-        var font = writer.CreateStandardFont("Helvetica");
-        var text = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
-        var size = await writer.MeasureTextLines(font, 24, 300, text);
-        Assert.Equal(300, size.Width);
-        Assert.Equal(96, size.Height);
-        Assert.Equal(4, size.Lines);
-
-        writer.AddResourceToPage(font);
-        await writer.CloseContentStream();
-        await writer.ClosePage();
-        await writer.Close();
-    }
-
-    #endregion
 }

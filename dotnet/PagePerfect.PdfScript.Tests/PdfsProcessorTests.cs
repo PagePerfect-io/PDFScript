@@ -748,6 +748,62 @@ public class PdfsProcessorTests
     }
     #endregion
 
+    #region Drawing text lines
+    /// <summary>
+    /// The processor should support the Tfl operation, which is used to flow text along a width.
+    /// It should flow a short piece of text over a single line.
+    /// </summary>
+    [Fact]
+    public async Task ShouldFlowSingleTextLine()
+    {
+        using var stream = S(
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 100 100 Td 300 (Hello, world!) Tfl ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a single call to draw text as the content fits on a line.
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("Hello, world!"));
+        await writer.Received(1).WriteRawContent(" Tj\r\n");
+    }
+
+    /// <summary>
+    /// The processor should support the Tfl operation, which is used to flow text along a width.
+    /// It should flow a piece of text over multiple text lines.
+    /// </summary>
+    [Fact]
+    public async Task ShouldFlowTextLines()
+    {
+        using var stream = S(
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 100 100 Td 300 (The quick brown fox jumps over the lazy dog.) Tfl ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a single call to draw text as the content fits on a line.
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("The quick brown fox"));
+        await writer.Received(1).WriteRawContent(" Tj\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("jumps over the lazy dog."));
+        await writer.Received(1).WriteRawContent(" Tj\r\n");
+    }
+
+    #endregion
+
+    #region Measuring text lines
+    #endregion
+
     #region Real world examples
     /// <summary>
     /// The processor should output a PDF with some lines on it.

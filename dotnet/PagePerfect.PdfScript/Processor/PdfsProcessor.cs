@@ -613,6 +613,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await WriteTfOperation(op);
                 break;
 
+            case Operator.Tfl:
+                await WriteTflOperation(op);
+                break;
+
             //            case Operator.Tj:
             //              await WriteTjOperation(op);
             //            break;
@@ -759,6 +763,17 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
         // Write the font and size.
         await _writer.WriteRawContent($"/{font.Identifier} {fontSize} Tf\r\n");
+    }
+
+    /// <summary>
+    /// Writes a Tfl operation. This method will perform a text-flow operation
+    /// and then output text lines to the PDF document writer. As a side-effect,
+    /// this method will also set the system variables for text width, text height,
+    /// and number of text lines written. 
+    /// /// </summary>
+    /// <param name="op">The graphics operation.</param>
+    private async Task WriteTflOperation(GraphicsOperation op)
+    {
     }
     #endregion
 
