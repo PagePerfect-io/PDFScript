@@ -25,6 +25,7 @@ public class TextFlowEngine
     private readonly double _wordSpacing; // The word spacing.
     private readonly double _characterSpacing; // The character spacing.
     private readonly double _textRatio; // The text ratio.
+    private static readonly char[] separators = [' ', '\t', '\r', '\n', '\f'];
     #endregion
 
 
@@ -43,7 +44,7 @@ public class TextFlowEngine
         double characterSpacing = 0,
         double textRatio = 1)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _options = options;
         _lineSpacing = lineSpacing;
 
         if (HorizontalTextAlignment.FullyJustified == (_options.HorizontalAlignment & HorizontalTextAlignment.FullyJustified))
@@ -77,8 +78,7 @@ public class TextFlowEngine
     /// <exception cref="ArgumentNullException"></exception>
     public IEnumerable<Line> FlowText(IEnumerable<Span> spans, PdfRectangle rect)
     {
-        if (null == spans) throw new ArgumentNullException(nameof(spans));
-        if (rect.Width <= 0) return new List<Line>();
+        if (rect.Width <= 0) return [];
         var lines = new List<Line>();
 
         // First, we need to flow the words into lines.
@@ -104,7 +104,7 @@ public class TextFlowEngine
     /// </summary>
     /// <param name="lines">The lines.</param>
     /// <param name="rect">The rectangle.</param>
-    /// <exception cref="ArgumentOutOfRangeException">The value for vertical alignment is not one of the supported values.</exception>
+    /// <exception cref="InvalidOperationException">The value for vertical alignment is not one of the supported values.</exception>
     private void AlignLines(List<Line> lines, PdfRectangle rect)
     {
         if (lines.Count == 0) return;
@@ -118,7 +118,7 @@ public class TextFlowEngine
             VerticalTextAlignment.Top => rect.Top,
             VerticalTextAlignment.Middle => rect.Top - (rect.Height - totalHeight) / 2,
             VerticalTextAlignment.Bottom => rect.Bottom + totalHeight,
-            _ => throw new ArgumentOutOfRangeException()
+            _ => throw new InvalidOperationException("The value for vertical alignment is not one of the supported values.")
         };
 
         // Lay out the lines.
@@ -310,7 +310,7 @@ public class TextFlowEngine
     {
         var space = span.Font.MeasureSpace(span.FontSize, _characterSpacing, _textRatio);
 
-        var words = span.Text.Split(new[] { ' ', '\t', '\r', '\n', '\f' }, StringSplitOptions.RemoveEmptyEntries);
+        var words = span.Text.Split(separators, StringSplitOptions.RemoveEmptyEntries);
 
         return words.Select(w => new WordMetric(w, span.Font)
         {
@@ -501,7 +501,7 @@ public class TextFlowEngine
     private void Setup(List<Line> lines, PdfRectangle rect)
     {
         _lines = lines;
-        _currentLine = new List<IWordMetric>();
+        _currentLine = [];
         _rect = rect;
         _currentChunk = null;
         _left = 0;
@@ -525,7 +525,7 @@ public class TextFlowEngine
     {
         public Chunk(WordMetric word)
         {
-            Words = new List<WordMetric>();
+            Words = [];
             AddWord(word);
         }
 
@@ -542,23 +542,17 @@ public class TextFlowEngine
         }
     }
 
-    private class WordMetric : IWordMetric
+    private class WordMetric(string text, Font font) : IWordMetric
     {
-        public WordMetric(string text, Font font)
-        {
-            Text = text;
-            Font = font;
-        }
-
         public double Space { get; set; }
 
         public double Width { get; set; }
 
-        public Font Font { get; set; }
+        public Font Font { get; set; } = font;
 
         public double FontSize { get; set; }
 
-        public string Text { get; set; }
+        public string Text { get; set; } = text;
 
         public double Height { get => FontSize; }
     }

@@ -308,9 +308,49 @@ public enum Operator
     ell,
 
     /// <summary>
-    /// The Tfl operator - flows text on a single line or multiple lines.
+    /// The Ta operator - sets the horizontal text alignment
     /// </summary>
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.String, AllowedIn = GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    Ta,
+
+    /// <summary>
+    /// The TA operator - sets the vertical text alignment
+    /// </summary>
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    TA,
+
+    /// <summary>
+    /// The Tb operator - sets the text box constraint.
+    /// </summary>
+    [GraphicsOperation(PdfsValueKind.Name, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    Tb,
+
+    /// <summary>
+    /// The Tfl operator - flows text across lines, and shows it.
+    /// </summary>
     [GraphicsOperation(PdfsValueKind.String, AllowedIn = GraphicsObject.Text)]
     Tfl,
+
+    /// <summary>
+    /// The TFL operator - flows text spans across lines, and shows it.
+    /// </summary>
+    [GraphicsOperation(PdfsValueKind.Array, AllowedIn = GraphicsObject.Text)]
+    TFL,
+
+    /// <summary>
+    /// The Tfl operator - measures the flow of text across lines,
+    /// but does not show any text.
+    /// </summary>
+    [GraphicsOperation(PdfsValueKind.String, AllowedIn = GraphicsObject.Text)]
+    Tml,
+
+    /// <summary>
+    /// The TML operator - measures the flow of text spans across lines,
+    /// but does not show any text. 
+    /// </summary>
+    [GraphicsOperation(PdfsValueKind.Array, AllowedIn = GraphicsObject.Text)]
+    TML,
+
 }
