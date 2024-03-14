@@ -209,7 +209,7 @@ public class TextFlowEngine
         var start = 0;
         if (null != _currentChunk)
         {
-            if (!words.Any()) return PlaceChunk(_currentChunk);
+            if (words.Count == 0) return PlaceChunk(_currentChunk);
             if (null == words.First())
             {
                 if (!PlaceChunk(_currentChunk)) return false;
@@ -262,36 +262,36 @@ public class TextFlowEngine
 
         foreach (var metric in _currentLine)
         {
-            if (spans.Any()) left += equalSpace;
+            if (spans.Count != 0) left += equalSpace;
 
             switch (metric)
             {
                 case Chunk chunk:
                     foreach (var chunkWord in chunk.Words)
                     {
-                        var chunkWidth = chunkWord.Width + (spans.Any() ? metric.Space + _wordSpacing : 0);
+                        var chunkWidth = chunkWord.Width + (spans.Count != 0 ? metric.Space + _wordSpacing : 0);
                         spans.Add(new LineSpan(
                             new PdfRectangle(left, _bottom, chunkWidth, chunkWord.Height),
                             chunkWord.Font,
                             chunkWord.FontSize,
-                            spans.Any() ? $" {chunkWord.Text}" : chunkWord.Text));
+                            spans.Count != 0 ? $" {chunkWord.Text}" : chunkWord.Text));
                         left += chunkWidth;
                     }
                     break;
 
                 case WordMetric word:
-                    var width = metric.Width + (spans.Any() ? metric.Space + _wordSpacing : 0);
+                    var width = metric.Width + (spans.Count != 0 ? metric.Space + _wordSpacing : 0);
                     spans.Add(new LineSpan(
                         new PdfRectangle(left, _bottom, width, word.Height),
                         word.Font,
                         word.FontSize,
-                        spans.Any() ? $" {word.Text}" : word.Text));
+                        spans.Count != 0 ? $" {word.Text}" : word.Text));
                     left += width;
                     break;
             }
         }
 
-        if (spans.Any())
+        if (spans.Count != 0)
         {
             var first = spans.First();
             var last = spans.Last();
@@ -315,8 +315,8 @@ public class TextFlowEngine
         return words.Select(w => new WordMetric(w, span.Font)
         {
             FontSize = span.FontSize,
-            Space = space,
-            Width = span.Font.MeasureString(w, span.FontSize, _characterSpacing, _textRatio)
+            Space = (float)space,
+            Width = (float)span.Font.MeasureString(w, span.FontSize, _characterSpacing, _textRatio)
         }).ToList();
     }
 
@@ -340,10 +340,10 @@ public class TextFlowEngine
     private bool PlaceWord(IWordMetric word)
     {
         var width = word.Width + _wordSpacing;
-        if (_currentLine!.Any()) width += word.Space;
+        if (_currentLine!.Count != 0) width += word.Space;
         if (width + _left > _rect.Width)
         {
-            if (_currentLine!.Any()) width -= word.Space;
+            if (_currentLine!.Count != 0) width -= word.Space;
             if (false == TryCreateNewLine(word, true)) return false;
         }
         _left += width;
@@ -384,7 +384,7 @@ public class TextFlowEngine
                     {
                         var chunkWord = chunk.Words[cw];
                         width = chunkWord.Width;
-                        if (spans.Any() && 0 == cw) { width += chunkWord.Space + _wordSpacing; }
+                        if (spans.Count != 0 && 0 == cw) { width += chunkWord.Space + _wordSpacing; }
                         spans.Add(new LineSpan(
                             new PdfRectangle(left, _bottom, width, chunkWord.Height),
                             chunkWord.Font,
@@ -412,7 +412,7 @@ public class TextFlowEngine
                     }
                     else
                     {
-                        if (text.Length > 0 || spans.Any()) { text.Append(' '); width += word.Space + _wordSpacing; }
+                        if (text.Length > 0 || spans.Count != 0) { text.Append(' '); width += word.Space + _wordSpacing; }
                         text.Append(word.Text);
                         width += word.Width;
                         previous = word;
@@ -430,7 +430,7 @@ public class TextFlowEngine
                 text.ToString()));
         }
 
-        if (spans.Any())
+        if (spans.Count != 0)
         {
             var first = spans.First();
             var last = spans.Last();
@@ -516,9 +516,9 @@ public class TextFlowEngine
     #region Private types
     private interface IWordMetric
     {
-        double Width { get; }
-        double Height { get; }
-        double Space { get; }
+        float Width { get; }
+        float Height { get; }
+        float Space { get; }
     }
 
     private class Chunk : IWordMetric
@@ -529,11 +529,11 @@ public class TextFlowEngine
             AddWord(word);
         }
 
-        public double Space => Words.First().Space;
-        public double Width { get; private set; }
+        public float Space => Words.First().Space;
+        public float Width { get; private set; }
         public List<WordMetric> Words { get; set; } // ...        
 
-        public double Height => Words.Max(w => w.Height);
+        public float Height => Words.Max(w => w.Height);
 
         public void AddWord(WordMetric word)
         {
@@ -544,17 +544,17 @@ public class TextFlowEngine
 
     private class WordMetric(string text, Font font) : IWordMetric
     {
-        public double Space { get; set; }
+        public float Space { get; set; }
 
-        public double Width { get; set; }
+        public float Width { get; set; }
 
         public Font Font { get; set; } = font;
 
-        public double FontSize { get; set; }
+        public float FontSize { get; set; }
 
         public string Text { get; set; } = text;
 
-        public double Height { get => FontSize; }
+        public float Height { get => FontSize; }
     }
     #endregion
 }

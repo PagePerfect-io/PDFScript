@@ -518,7 +518,6 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             case PdfsValueKind.String:
                 // Encode to Windows Latin-1.
                 await _writer.WriteAsync("(");
-                await _writer.FlushAsync();
                 await _writer.WriteAsync(PdfUtilities.EscapeIso88591String(value.GetString()));
                 await _writer.WriteAsync(")");
                 break;

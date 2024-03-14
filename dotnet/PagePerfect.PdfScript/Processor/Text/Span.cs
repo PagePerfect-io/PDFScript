@@ -12,7 +12,7 @@ namespace PagePerfect.PdfScript.Processor.Text;
 /// <param name="text">The text in this span.</param>
 /// <param name="font">The font.</param>
 /// <param name="fontSize">The font size.</param>
-public class Span(string text, Font font, double fontSize)
+public class Span(string text, Font font, float fontSize)
 {
     // Public properties
     // =================
@@ -25,7 +25,7 @@ public class Span(string text, Font font, double fontSize)
     /// <summary>
     /// The font size.
     /// </summary>
-    public double FontSize { get; set; } = fontSize;
+    public float FontSize { get; set; } = fontSize;
 
     /// <summary>
     /// The text of the span.

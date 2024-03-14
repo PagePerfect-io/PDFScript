@@ -15,7 +15,7 @@ namespace PagePerfect.PdfScript.Processor.Text;
 /// <param name="font">The font.</param>
 /// <param name="fontSize">The font size.</param>
 /// <param name="text">The text of this line span.</param>
-public class LineSpan(PdfRectangle boundingBox, Font font, double fontSize, string text)
+public class LineSpan(PdfRectangle boundingBox, Font font, float fontSize, string text)
 {
     // Public properties
     // =================
@@ -39,6 +39,6 @@ public class LineSpan(PdfRectangle boundingBox, Font font, double fontSize, stri
     /// The font size, in points.
     /// </summary>
     /// <value></value>
-    public double FontSize { get; } = fontSize;
+    public float FontSize { get; } = fontSize;
     #endregion
 }
