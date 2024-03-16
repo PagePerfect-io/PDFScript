@@ -323,6 +323,7 @@ public enum Operator
     /// The Tb operator - sets the text box constraint.
     /// </summary>
     [GraphicsOperation(PdfsValueKind.Name, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Name, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     Tb,

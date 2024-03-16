@@ -4,6 +4,7 @@ namespace PagePerfect.PdfScript.Processor.Text;
 /// The HorizontalTextAlignment enumeration lists the possible horizontal aligment values for the
 /// TextFormattingOptions class.
 /// </summary>
+[Flags]
 public enum HorizontalTextAlignment
 {
     /// <summary>

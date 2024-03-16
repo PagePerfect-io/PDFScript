@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using PagePerfect.PdfScript.Processor.Text;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Reader.Statements;
 using PagePerfect.PdfScript.Reader.Statements.Prolog;
@@ -30,6 +31,9 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private (float Width, float Height) _pageSize = (595, 842);
     private static readonly string[] _reservedNames;
     private static readonly PageTemplate[] _pageTemplates;
+    private GraphicsState _graphicsState = new();
+    private Stack<GraphicsState> _graphicsStateStack = new();
+    private (float Width, float Height) _textBoxConstraint = (-1, -1);
     #endregion
 
 
@@ -163,9 +167,9 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// </summary>
     /// <param name="location">The location of the resource.</param>
     /// <returns>A resource reference.</returns>
-    private async Task<PdfResourceReference> EnsureLocalTrueTypeFont(string location)
+    private async Task<Font> EnsureLocalTrueTypeFont(string location)
     {
-        if (_localResources.TryGetValue(location, out var resource)) return resource;
+        if (_localResources.TryGetValue(location, out var resource)) return (Font)resource;
 
         // Download the font locally.
         var localPath = await DownloadResourceToTempFile(location);
@@ -301,6 +305,41 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         }
     }
 
+    /// <summary>
+    /// Processes a Tb operation. This method will process the text box constraint,
+    /// and set the current text box.
+    /// </summary>
+    /// <param name="op">The graphics operation.</param>
+    private void ProcessTextBoxConstraint(GraphicsOperation op)
+    {
+        var w = ResolveOperand(op.Operands[0]);
+        var h = ResolveOperand(op.Operands[1]);
+
+        var width = w.Kind switch
+        {
+            PdfsValueKind.Number => w.GetNumber(),
+            PdfsValueKind.Keyword => w.GetString() switch
+            {
+                "auto" => -1,
+                _ => throw new PdfsProcessorException($"Invalid width value for text box '{w.GetString()}'.")
+            },
+            _ => throw new PdfsProcessorException($"Invalid width value for text box '{w.Kind}'.")
+        };
+
+        var height = h.Kind switch
+        {
+            PdfsValueKind.Number => h.GetNumber(),
+            PdfsValueKind.Keyword => h.GetString() switch
+            {
+                "auto" => -1,
+                _ => throw new PdfsProcessorException($"Invalid height value for text box '{h.GetString()}'.")
+            },
+            _ => throw new PdfsProcessorException($"Invalid height value for text box '{h.Kind}'.")
+        };
+
+        _textBoxConstraint = (width, height);
+    }
+
     private PdfsValue ResolveArray(PdfsValue[] array)
     {
         for (int i = 0; i < array.Length; i++)
@@ -330,7 +369,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// /// </summary>
     /// <param name="fontName">The name of the font.</param>
     /// <returns>The font resource.</returns>
-    private async Task<PdfResourceReference> ResolveFont(string fontName)
+    private async Task<Font> ResolveFont(string fontName)
     {
         if (FontUtilities.IsStandardFont(fontName))
         {
@@ -609,8 +648,57 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await WriteDoOperation(op);
                 break;
 
+            case Operator.q:
+                _graphicsStateStack.Push(_graphicsState.Clone());
+                break;
+
+            case Operator.Q:
+                if (_graphicsStateStack.Count == 0) throw new PdfsProcessorException("Cannot restore state - no state to restore.");
+                _graphicsState = _graphicsStateStack.Pop();
+                break;
+
             case Operator.Tf:
                 await WriteTfOperation(op);
+                break;
+
+            case Operator.Ta:
+                // Process horizontal text alignment.
+                _graphicsState.HorizontalTextAlignment = (HorizontalTextAlignment)ResolveOperand(op.Operands[0]).GetNumber();
+                break;
+
+            case Operator.TA:
+                // Process vertical text alignment.
+                _graphicsState.VerticalTextAlignment = (VerticalTextAlignment)ResolveOperand(op.Operands[0]).GetNumber();
+                break;
+
+            case Operator.Tb:
+                // Process the text box constraint.
+                ProcessTextBoxConstraint(op);
+                break;
+
+            case Operator.Tc:
+                // Process character spacing.
+                _graphicsState.CharacterSpacing = ResolveOperand(op.Operands[0]).GetNumber();
+                break;
+
+            case Operator.Tw:
+                // Process word spacing.
+                _graphicsState.WordSpacing = ResolveOperand(op.Operands[0]).GetNumber();
+                break;
+
+            case Operator.Tz:
+                // Process horizontal scaling.
+                _graphicsState.HorizontalScaling = ResolveOperand(op.Operands[0]).GetNumber() / 100f;
+                break;
+
+            case Operator.TL:
+                // Process leading.
+                _graphicsState.Leading = ResolveOperand(op.Operands[0]).GetNumber();
+                break;
+
+            case Operator.Ts:
+                // Process rise.
+                _graphicsState.Rise = ResolveOperand(op.Operands[0]).GetNumber();
                 break;
 
             case Operator.Tfl:
@@ -763,6 +851,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
         // Write the font and size.
         await _writer.WriteRawContent($"/{font.Identifier} {fontSize} Tf\r\n");
+
+        // Update the graphics state.
+        _graphicsState.FontSize = fontSize;
+        _graphicsState.Font = font;
     }
 
     /// <summary>
@@ -774,6 +866,51 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// <param name="op">The graphics operation.</param>
     private async Task WriteTflOperation(GraphicsOperation op)
     {
+        if (null == _graphicsState.Font) throw new PdfsProcessorException("Set a font first before placing text.");
+        if (_graphicsState.FontSize <= 0) throw new PdfsProcessorException("Set a font size first before placing text.");
+
+        var text = ResolveOperand(op.Operands[0]);
+
+        // If the text block constraint has auto width, we won't flow text
+        // but simply write a single line.
+        if (_textBoxConstraint.Width < 0)
+        {
+            await _writer.WriteValue(text);
+            await _writer.WriteRawContent(" Tj\r\n");
+            return;
+
+            // TODO: measure width, set height to font size, return 1 line
+            // TODO: vertically center text
+        }
+
+        //TODO: use NaN for height of Rect and deal with this in Engine
+        // TODO: Measure widest line, measure height, return number of lines.
+
+        // With a set width, we need to flow the text.
+        // If the text alignment is justified, then we need to force the
+        // word spacing to zero in the output if it's not currently zero.
+        var needsForcedWordSpacing = _graphicsState.WordSpacing != 0 && HorizontalTextAlignment.FullyJustified == (_graphicsState.HorizontalTextAlignment & HorizontalTextAlignment.FullyJustified);
+        if (needsForcedWordSpacing) { await _writer.WriteRawContent($"q 0 Tw\r\n"); }
+
+        var rect = new PdfRectangle(0, 0, _textBoxConstraint.Width, _textBoxConstraint.Height);
+        var span = new Span(text.GetString(), _graphicsState.Font, _graphicsState.FontSize);
+        var engine = new TextFlowEngine(
+            new TextAlignmentOptions(
+                _graphicsState.HorizontalTextAlignment,
+                _graphicsState.VerticalTextAlignment),
+            _graphicsState.Leading,
+            _graphicsState.WordSpacing,
+            _graphicsState.CharacterSpacing,
+            _graphicsState.HorizontalScaling);
+        var lines = engine.FlowText([span], rect);
+
+        if (lines.Any()) { await _writer.WriteLines(lines); }
+
+        // If we had to force 0 word spacing, we restore the state now.
+        if (needsForcedWordSpacing)
+        {
+            await _writer.WriteRawContent($"Q\r\n");
+        }
     }
     #endregion
 
@@ -782,6 +919,90 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     // Private types
     // =============
     #region Private types
+    /// <summary>
+    /// The GraphicsState class represents the state of the graphics object.
+    /// This is used primarily to store the state of the text object, before
+    /// drawing text lines, as we need to be able to feed parameters such as
+    /// the character spacing, into the text flow engine.
+    /// </summary>
+    private class GraphicsState
+    {
+        // Public properties
+        // =================
+        #region Public properties
+        /// <summary>
+        /// The text leading.
+        /// </summary>
+        public float Leading { get; set; }
+
+        /// <summary>
+        /// The character spacing.
+        /// </summary>
+        public float CharacterSpacing { get; set; }
+
+        /// <summary>
+        /// The word spacing.
+        /// </summary>
+        public float WordSpacing { get; set; }
+
+        /// <summary>
+        /// The horizontal scaling for text.
+        /// </summary>
+        public float HorizontalScaling { get; set; } = 1;
+
+        /// <summary>
+        /// The text rise.
+        /// </summary>
+        public float Rise { get; set; }
+
+        /// <summary>
+        /// The font size.
+        /// </summary>
+        public float FontSize { get; set; }
+
+        /// <summary>
+        /// The current font.
+        /// </summary>
+        public Font? Font { get; set; }
+
+        /// <summary>
+        /// The horizontal text alignment.
+        /// </summary>
+        public HorizontalTextAlignment HorizontalTextAlignment { get; set; } = HorizontalTextAlignment.Left;
+
+        /// <summary>
+        /// The vertical text alignment.
+        /// </summary>
+        public VerticalTextAlignment VerticalTextAlignment { get; set; } = VerticalTextAlignment.Top;
+        #endregion
+
+
+
+        // Public methods
+        // ==============
+        #region Public methods
+        /// <summary>
+        /// Clones this graphics state.
+        /// </summary>
+        /// <returns>The cloned instance.</returns>
+        public GraphicsState Clone()
+        {
+            return new GraphicsState
+            {
+                Leading = Leading,
+                CharacterSpacing = CharacterSpacing,
+                WordSpacing = WordSpacing,
+                HorizontalScaling = HorizontalScaling,
+                Rise = Rise,
+                FontSize = FontSize,
+                Font = Font,
+                HorizontalTextAlignment = HorizontalTextAlignment,
+                VerticalTextAlignment = VerticalTextAlignment
+            };
+        }
+        #endregion
+    }
+
     /// <summary>
     /// The PdfsProcessorState enumeration represents the state of the processor.
     /// This is used to determine how to process statements from the reader.
