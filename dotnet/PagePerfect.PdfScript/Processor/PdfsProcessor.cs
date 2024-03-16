@@ -650,11 +650,13 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
             case Operator.q:
                 _graphicsStateStack.Push(_graphicsState.Clone());
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Q:
                 if (_graphicsStateStack.Count == 0) throw new PdfsProcessorException("Cannot restore state - no state to restore.");
                 _graphicsState = _graphicsStateStack.Pop();
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Tf:
@@ -679,26 +681,31 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
             case Operator.Tc:
                 // Process character spacing.
                 _graphicsState.CharacterSpacing = ResolveOperand(op.Operands[0]).GetNumber();
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Tw:
                 // Process word spacing.
                 _graphicsState.WordSpacing = ResolveOperand(op.Operands[0]).GetNumber();
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Tz:
                 // Process horizontal scaling.
                 _graphicsState.HorizontalScaling = ResolveOperand(op.Operands[0]).GetNumber() / 100f;
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.TL:
                 // Process leading.
                 _graphicsState.Leading = ResolveOperand(op.Operands[0]).GetNumber();
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Ts:
                 // Process rise.
                 _graphicsState.Rise = ResolveOperand(op.Operands[0]).GetNumber();
+                await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Tfl:
