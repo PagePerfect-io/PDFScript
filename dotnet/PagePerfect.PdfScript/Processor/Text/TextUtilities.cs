@@ -63,7 +63,9 @@ public static class TextUtilities
                 if (null != previousRight && span.BoundingBox.Left > previousRight)
                 {
                     var gap = (int)((span.BoundingBox.Left - previousRight) * 1000 / span.FontSize);
-                    await writer.WriteRawContent($"[-{gap} ({PdfUtilities.EscapeIso88591String(span.Text)})] TJ\r\n");
+                    await writer.WriteRawContent($"[-{gap} ");
+                    await writer.WriteValue(new PdfsValue(span.Text));
+                    await writer.WriteRawContent($"] TJ\r\n");
                 }
                 else
                 {

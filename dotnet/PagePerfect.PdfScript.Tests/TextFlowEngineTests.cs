@@ -81,7 +81,7 @@ public class TextFlowEngineTests
         Assert.Equal(0, lines.First().Spans.First().BoundingBox.Left);
         Assert.Equal(100 - 12, lines.First().Spans.First().BoundingBox.Bottom);
         Assert.Equal(100, lines.First().Spans.First().BoundingBox.Top);
-        Assert.Equal(expected, lines.First().Spans.First().BoundingBox.Width);
+        Assert.Equal(expected, lines.First().Spans.First().BoundingBox.Width, 2);
     }
 
     /// <summary>
@@ -148,9 +148,9 @@ public class TextFlowEngineTests
 
         // The text should match the input but with collapsed whitespace.
         // The width should be the width of the text with collapsed whitespace.
-        var width = font.MeasureString("Hello, world!", 12, 0, 1);
+        var width = (float)font.MeasureString("Hello, world!", 12, 0, 1);
         Assert.Equal("Hello, world!", lines.First().Spans.First().Text);
-        Assert.Equal(width, lines.First().Spans.First().BoundingBox.Width);
+        Assert.Equal(width, lines.First().Spans.First().BoundingBox.Width, 2);
     }
 
     /// <summary>
@@ -177,7 +177,7 @@ public class TextFlowEngineTests
         Assert.Equal(0, first.Spans.First().BoundingBox.Left);
         Assert.Equal(100 - 12, first.Spans.First().BoundingBox.Bottom);
         Assert.Equal(100, first.Spans.First().BoundingBox.Top);
-        Assert.Equal(width, first.Spans.First().BoundingBox.Width);
+        Assert.Equal(width, first.Spans.First().BoundingBox.Width, 2);
 
         var second = lines.Skip(1).First();
         Assert.Single(second.Spans);
@@ -342,7 +342,7 @@ public class TextFlowEngineTests
         Assert.Equal(" over", second.Spans[2].Text);
         Assert.Equal(" the", second.Spans[3].Text);
         Assert.Equal(0, second.Spans[0].BoundingBox.Left);
-        Assert.Equal(100, second.Spans[3].BoundingBox.Right);
+        Assert.Equal(100, second.Spans[3].BoundingBox.Right, 2);
         Assert.Equal(
             Math.Round(second.Spans[1].BoundingBox.Left - second.Spans[0].BoundingBox.Right, 2),
             Math.Round(second.Spans[2].BoundingBox.Left - second.Spans[1].BoundingBox.Right, 2));

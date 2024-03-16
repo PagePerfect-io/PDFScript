@@ -1,5 +1,6 @@
 
 
+using NSubstitute;
 using PagePerfect.PdfScript.Processor.Text;
 using PagePerfect.PdfScript.Writer;
 
@@ -12,7 +13,237 @@ public class TextUtilitiesTests
 {
     // Public methods
     // ==============
-    #region Public methods
+    #region Write lines to IPdfDocumentWriter
+    /// <summary>
+    /// The WriteLines method should not output a text block (BT..ET)
+    /// when passing in at least one line.
+    /// </summary>
+    [Fact]
+    public async Task ShouldNotOutputTextBlockInstructionsToPdfDocumentWriter()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+
+        var font = new TestFont("Helvetica");
+
+        var lines = new[] { new Line(new PdfRectangle(10, 10, 100, 12), [
+            new LineSpan(new PdfRectangle(10, 10, 100, 12), font, 12, "Hello, world") ]) };
+        await writer.WriteLines(lines);
+
+        // Check that we can read the document.
+        await writer.DidNotReceive().WriteRawContent($"BT\r\n");
+        await writer.Received(1).WriteRawContent($"/{font.Identifier} 12 Tf\r\n");
+        await writer.DidNotReceive().WriteRawContent($"ET\r\n");
+    }
+
+    /// <summary>
+    /// The WriteLines method should output consecutive TJ instructions for consecutive spans.
+    /// </summary>
+    [Fact]
+    public async Task ShouldOutputConsecutiveLineSpansToPdfDocumentWriter()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        var font = new TestFont("Helvetica");
+
+        var lines = new[] { new Line(new PdfRectangle(10, 10, 200, 12), [
+            new LineSpan(new PdfRectangle(10, 10, 100, 12), font, 12, "Hello, "),
+            new LineSpan(new PdfRectangle(110, 10, 100, 12), font, 12, "world") ] ) };
+        await writer.WriteLines(lines);
+
+        // Check that there is only one Tf instruction, and two Tj instructions.
+        await writer.Received(1).WriteRawContent($"/{font.Identifier} 12 Tf\r\n");
+        await writer.Received().WriteValue(new Reader.PdfsValue("Hello, "));
+        await writer.Received().WriteValue(new Reader.PdfsValue("world"));
+        await writer.Received(2).WriteRawContent(" Tj\r\n");
+    }
+
+    /// <summary>
+    /// The WriteLines method should output text in WinAnsi encoding.
+    /// </summary>
+    [Fact]
+    public async Task ShouldOutputWinAnsiEncodedTextToPdfDocumentWriter()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        var font = new TestFont("Helvetica");
+
+        // Text with some character > 127
+        var lines = new[] { new Line(new PdfRectangle(10, 10, 200, 12), [
+            new LineSpan(new PdfRectangle(10, 10, 100, 12), font, 12, "Hello, "),
+            new LineSpan(new PdfRectangle(110, 10, 100, 12), font, 12, "£Money!") ] ) };
+        await writer.WriteLines(lines);
+
+        // Check that we can read the encoded text.
+        // UPDATE: Actually, WriteValue() takes care of this.
+        await writer.Received().WriteValue(new Reader.PdfsValue("Hello, "));
+        await writer.Received().WriteValue(new Reader.PdfsValue("£Money!"));
+    }
+
+    /// <summary>
+    /// The WriteLines method should output a positioned text (TJ) instruction
+    /// when two or more line spans don't touch.
+    /// </summary>
+    [Fact]
+    public async Task ShouldOutputPositionedTextToPdfDocumentWriterWhenLineSpansDontTouch()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        var font = new TestFont("Helvetica");
+
+        var lines = new[] { new Line(new PdfRectangle(10, 10, 430, 12), [
+            new LineSpan(new PdfRectangle(10, 10, 100, 12), font, 12, "The quick "),
+            new LineSpan(new PdfRectangle(120, 10, 100, 12), font, 12, "brown fox "),
+            new LineSpan(new PdfRectangle(230, 10, 100, 12), font, 12, "jumps over "),
+            new LineSpan(new PdfRectangle(340, 10, 100, 12), font, 12, "the lazy dog.") ] ) };
+        await writer.WriteLines(lines);
+
+        // We expect only one Tf instruction, one Tj instruction, and three TJ instructions.
+        await writer.Received(1).WriteRawContent($"/{font.Identifier} 12 Tf\r\n");
+        await writer.Received().WriteValue(new Reader.PdfsValue("The quick "));
+        await writer.Received(1).WriteRawContent(" Tj\r\n");
+
+        var gap = (int)(10 * 1000 / 12d);
+        await writer.Received().WriteValue(new Reader.PdfsValue("brown fox "));
+        await writer.Received().WriteValue(new Reader.PdfsValue("jumps over "));
+        await writer.Received().WriteValue(new Reader.PdfsValue("the lazy dog."));
+        await writer.Received(3).WriteRawContent($"[-{gap} ");
+        await writer.Received(3).WriteRawContent("] TJ\r\n");
+    }
+
+    /// <summary>
+    /// The WriteLines method should output a Tf instruction each time a span has a
+    /// different font or size to the previous span.
+    [Fact]
+    public async Task ShouldOutputMultipleFontIntructionsToPdfDocumentWriterAcrossSpans()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+
+        var regular = new TestFont("Helvetica");
+        var bold = new TestFont("Helvetica-Bold", "F2");
+
+        var lines = new[] { new Line(new PdfRectangle(10, 10, 430, 12), [
+            new LineSpan(new PdfRectangle(10, 10, 100, 12), regular, 12, "The quick "),
+            new LineSpan(new PdfRectangle(120, 10, 100, 12), bold, 12, "brown fox "),
+            new LineSpan(new PdfRectangle(230, 10, 100, 12), bold, 12, "jumps over "),
+            new LineSpan(new PdfRectangle(340, 10, 100, 12), bold, 14, "the lazy dog.") ] ) };
+        await writer.WriteLines(lines);
+
+        // We expect three Tf instructions.
+        await writer.Received(1).WriteRawContent($"/{regular.Identifier} 12 Tf\r\n");
+        await writer.Received(1).WriteRawContent($"/{bold.Identifier} 12 Tf\r\n");
+        await writer.Received(1).WriteRawContent($"/{bold.Identifier} 14 Tf\r\n");
+
+        await writer.Received().WriteValue(new Reader.PdfsValue("The quick "));
+        await writer.Received(1).WriteRawContent(" Tj\r\n");
+
+        var gap = (int)(10 * 1000 / 12d);
+        await writer.Received().WriteValue(new Reader.PdfsValue("brown fox "));
+        await writer.Received().WriteValue(new Reader.PdfsValue("jumps over "));
+        await writer.Received(2).WriteRawContent($"[-{gap} ");
+
+        gap = (int)(10 * 1000 / 14d);
+        await writer.Received().WriteValue(new Reader.PdfsValue("the lazy dog."));
+        await writer.Received(1).WriteRawContent($"[-{gap} ");
+        await writer.Received(3).WriteRawContent("] TJ\r\n");
+    }
+
+    /// <summary>
+    /// The WriteLines method should output multiple lines, with one or more TJ or Tj instructions.
+    /// </summary>
+    [Fact]
+    public async Task ShouldWriteMultipleLinesToPdfDocumentWriter()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        var regular = new TestFont("Helvetica");
+
+        var lines = new[] {
+            new Line(new PdfRectangle(10, 50, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "The quick brown fox")
+            ]),
+            new Line(new PdfRectangle(10, 37.5, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "jumps over the lazy dog.")
+            ])
+        };
+
+        await writer.WriteLines(lines);
+
+        // We expect a line break instruction. that also sets the leading - TD
+        await writer.Received(1).WriteRawContent("0 -12.5 TD\r\n");
+
+        // We expect two Tj instructions.
+        await writer.Received(2).WriteRawContent(" Tj\r\n");
+    }
+
+    /// <summary>
+    /// The WriteLines method should correctly output standard T* linebreaks, or TD instructions that set the
+    /// text leading, based on the spacing of lines. 
+    /// </summary>
+    [Fact]
+    public async Task ShouldOutputLinebreaksToPdfDocumentWriterAndSetLeading()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        var regular = new TestFont("Helvetica");
+
+        // Four lines, with some inconsistnt spacing
+        var lines = new[] {
+            new Line(new PdfRectangle(10, 50, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "The quick")
+            ]),
+            new Line(new PdfRectangle(10, 37.5, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "brown fox")
+            ]),
+            new Line(new PdfRectangle(10, 25, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "jumps over")
+            ]),
+            new Line(new PdfRectangle(10, 10, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "the lazy dog.")
+            ])
+        };
+
+        await writer.WriteLines(lines);
+
+
+        // We expect a TD, a T*, and a TD.
+        await writer.Received(1).WriteRawContent("0 -12.5 TD\r\n");
+        await writer.Received(1).WriteRawContent("0 -15 TD\r\n");
+        await writer.Received(1).WriteRawContent("T*\r\n");
+    }
+
+    /// <summary>
+    /// The WriteLines method should support lines with different horizontal starting points
+    /// and output appropriate TD instructions.
+    /// <returns>
+    [Fact]
+    public async Task ShouldSupportHorizontalOffsetsToPdfDocumentWriter()
+    {
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        var regular = new TestFont("Helvetica");
+
+        // Four lines, with some inconsistnt leading and horizontal offsets
+        var lines = new[] {
+            new Line(new PdfRectangle(10, 50, 200, 12.5), [
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "The quick")
+            ]),
+            new Line(new PdfRectangle(20, 37.5, 200, 12.5), [
+                new LineSpan(new PdfRectangle(20, 10, 100, 12.5), regular, 12.5f, "brown fox")
+            ]),
+            new Line(new PdfRectangle(30, 25, 200, 12.5), [
+                new LineSpan(new PdfRectangle(30, 10, 100, 12.5), regular, 12.5f, "jumps over")
+            ]),
+            new Line(new PdfRectangle(20, 10, 200, 12.5), [
+                new LineSpan(new PdfRectangle(20, 10, 100, 12.5), regular, 12.5f, "the lazy dog.")
+            ])
+        };
+
+        await writer.WriteLines(lines);
+
+        // We expect three TD instructions, because each line has a different horizontal offset.
+        await writer.Received(2).WriteRawContent("10 -12.5 TD\r\n");
+        await writer.Received(1).WriteRawContent("-10 -15 TD\r\n");
+
+        // And we count four Tj instructions - no spacing within the line spans.
+        await writer.Received(4).WriteRawContent(" Tj\r\n");
+    }
+    #endregion
+
+    #region Write lines to text writer
     /// <summary>
     /// The WriteLines method should output a text block (BT..ET)
     /// when passing in at least one line.
@@ -170,10 +401,10 @@ public class TextUtilitiesTests
 
         var lines = new[] {
             new Line(new PdfRectangle(10, 50, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "The quick brown fox")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "The quick brown fox")
             ]),
             new Line(new PdfRectangle(10, 37.5, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "jumps over the lazy dog.")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "jumps over the lazy dog.")
             ])
         };
 
@@ -208,16 +439,16 @@ public class TextUtilitiesTests
         // Four lines, with some inconsistnt spacing
         var lines = new[] {
             new Line(new PdfRectangle(10, 50, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "The quick")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "The quick")
             ]),
             new Line(new PdfRectangle(10, 37.5, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "brown fox")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "brown fox")
             ]),
             new Line(new PdfRectangle(10, 25, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "jumps over")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "jumps over")
             ]),
             new Line(new PdfRectangle(10, 10, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "the lazy dog.")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "the lazy dog.")
             ])
         };
 
@@ -251,16 +482,16 @@ public class TextUtilitiesTests
         // Four lines, with some inconsistnt leading and horizontal offsets
         var lines = new[] {
             new Line(new PdfRectangle(10, 50, 200, 12.5), [
-                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5, "The quick")
+                new LineSpan(new PdfRectangle(10, 10, 100, 12.5), regular, 12.5f, "The quick")
             ]),
             new Line(new PdfRectangle(20, 37.5, 200, 12.5), [
-                new LineSpan(new PdfRectangle(20, 10, 100, 12.5), regular, 12.5, "brown fox")
+                new LineSpan(new PdfRectangle(20, 10, 100, 12.5), regular, 12.5f, "brown fox")
             ]),
             new Line(new PdfRectangle(30, 25, 200, 12.5), [
-                new LineSpan(new PdfRectangle(30, 10, 100, 12.5), regular, 12.5, "jumps over")
+                new LineSpan(new PdfRectangle(30, 10, 100, 12.5), regular, 12.5f, "jumps over")
             ]),
             new Line(new PdfRectangle(20, 10, 200, 12.5), [
-                new LineSpan(new PdfRectangle(20, 10, 100, 12.5), regular, 12.5, "the lazy dog.")
+                new LineSpan(new PdfRectangle(20, 10, 100, 12.5), regular, 12.5f, "the lazy dog.")
             ])
         };
 
