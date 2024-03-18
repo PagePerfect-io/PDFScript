@@ -896,8 +896,9 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         // With a set width, we need to flow the text.
         // If the text alignment is justified, then we need to force the
         // word spacing to zero in the output if it's not currently zero.
+        // We will set it back to its previous value after we're done.
         var needsForcedWordSpacing = _graphicsState.WordSpacing != 0 && HorizontalTextAlignment.FullyJustified == (_graphicsState.HorizontalTextAlignment & HorizontalTextAlignment.FullyJustified);
-        if (needsForcedWordSpacing) { await _writer.WriteRawContent($"q 0 Tw\r\n"); }
+        if (needsForcedWordSpacing) { await _writer.WriteRawContent($"0 Tw\r\n"); }
 
         var rect = new PdfRectangle(0, 0, _textBoxConstraint.Width, _textBoxConstraint.Height);
         var span = new Span(text.GetString(), _graphicsState.Font, _graphicsState.FontSize);
@@ -911,12 +912,23 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
             _graphicsState.HorizontalScaling);
         var lines = engine.FlowText([span], rect);
 
-        if (lines.Any()) { await _writer.WriteLines(lines); }
+        // Write the lines to the output. We include the current font and size,
+        // so that the writer knows to avoid outputting multiple Tf operations.
+        // And, if needed we update the graphics state to reflect the font and size
+        // of the most recently written line span.
+        if (lines.Any())
+        {
+            await _writer.WriteLines(lines, _graphicsState.Font, _graphicsState.FontSize);
+
+            var last = lines.Last().Spans.Last();
+            _graphicsState.Font = last.Font;
+            _graphicsState.FontSize = last.FontSize;
+        }
 
         // If we had to force 0 word spacing, we restore the state now.
         if (needsForcedWordSpacing)
         {
-            await _writer.WriteRawContent($"Q\r\n");
+            await _writer.WriteRawContent($"{_graphicsState.WordSpacing:F2} Tw\r\n");
         }
     }
     #endregion

@@ -12,16 +12,26 @@ public static class TextUtilities
     /// <summary>
     /// Writes the specified lines to the document. This method will emit TJ or Tj instructions
     /// for the spans on each line, via the PdfDocumentWriter instance.
+    /// This method also outputs Tf instructions to alter the font and size as necessary,
+    /// and accepts two parameters for the current font and size, to avoid unnecessary
+    /// font/size changes.
+    /// This method is an extension method for the IPdfDocumentWriter interface.
     /// </summary>
     /// <param name="writer">The document writer instance.</param>
     /// <param name="lines">The text lines.</param>
-    public static async Task WriteLines(this IPdfDocumentWriter writer, IEnumerable<Line> lines)
+    /// <param name="currentFont">The current font.</param>
+    /// <param name="currentFontSize">The current font size.</param>
+    public static async Task WriteLines(
+        this IPdfDocumentWriter writer,
+        IEnumerable<Line> lines,
+        Font? currentFont = null,
+        float currentFontSize = 0f)
     {
         if (!lines.Any()) return;
 
         Line? previous = null;
-        Font? previousFont = null;
-        var previousFontSize = 0f;
+        Font? previousFont = currentFont;
+        var previousFontSize = currentFontSize;
         var previousLeading = 0f;
 
         // Write each line in the text block.
@@ -43,7 +53,7 @@ public static class TextUtilities
 
                 previousLeading = leading;
             }
-            else { await writer.WriteRawContent($"1 0 0 1 {Math.Round(line.BoundingBox.Left, 3)} {Math.Round(line.BoundingBox.Bottom, 3)} Tm\r\n"); }
+            else { await writer.WriteRawContent($"{Math.Round(line.BoundingBox.Left, 3)} {Math.Round(line.BoundingBox.Bottom, 3)} Td\r\n"); }
 
             // Write each span in the line. We do not automatically insert spaces between spans -
             // the text flow engine will have already done that.
