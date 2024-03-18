@@ -33,7 +33,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private static readonly PageTemplate[] _pageTemplates;
     private GraphicsState _graphicsState = new();
     private Stack<GraphicsState> _graphicsStateStack = new();
-    private (float Width, float Height) _textBoxConstraint = (-1, -1);
+    private (float Width, float Height) _textBoxConstraint = (float.NaN, float.NaN);
     #endregion
 
 
@@ -317,10 +317,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
         var width = w.Kind switch
         {
-            PdfsValueKind.Number => w.GetNumber(),
-            PdfsValueKind.Keyword => w.GetString() switch
+            PdfsValueKind.Number => Math.Max(0, w.GetNumber()),
+            PdfsValueKind.Name => w.GetString() switch
             {
-                "auto" => -1,
+                "/Auto" => float.NaN,
                 _ => throw new PdfsProcessorException($"Invalid width value for text box '{w.GetString()}'.")
             },
             _ => throw new PdfsProcessorException($"Invalid width value for text box '{w.Kind}'.")
@@ -328,10 +328,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
         var height = h.Kind switch
         {
-            PdfsValueKind.Number => h.GetNumber(),
-            PdfsValueKind.Keyword => h.GetString() switch
+            PdfsValueKind.Number => Math.Max(0, h.GetNumber()),
+            PdfsValueKind.Name => h.GetString() switch
             {
-                "auto" => -1,
+                "/Auto" => float.NaN,
                 _ => throw new PdfsProcessorException($"Invalid height value for text box '{h.GetString()}'.")
             },
             _ => throw new PdfsProcessorException($"Invalid height value for text box '{h.Kind}'.")
@@ -880,7 +880,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
 
         // If the text block constraint has auto width, we won't flow text
         // but simply write a single line.
-        if (_textBoxConstraint.Width < 0)
+        if (float.IsNaN(_textBoxConstraint.Width))
         {
             await _writer.WriteValue(text);
             await _writer.WriteRawContent(" Tj\r\n");

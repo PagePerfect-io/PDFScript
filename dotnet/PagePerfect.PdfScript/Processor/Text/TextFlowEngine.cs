@@ -112,8 +112,9 @@ public class TextFlowEngine
         // Calculate the total height of the lines
         var totalHeight = lines.Sum(l => l.BoundingBox.Height) + (lines.Count - 1) * _lineSpacing;
 
-        // Calculate the offset to the top of the rectangle
-        var offset = _options.VerticalAlignment switch
+        // Calculate the offset to the top of the rectangle, if the height is
+        // a set number. We don't need to do anything if the height is NaN.
+        var offset = double.IsNaN(rect.Height) ? rect.Top : _options.VerticalAlignment switch
         {
             VerticalTextAlignment.Top => rect.Top,
             VerticalTextAlignment.Middle => rect.Top - (rect.Height - totalHeight) / 2,
@@ -472,7 +473,7 @@ public class TextFlowEngine
         var currentHeight = _currentLine!.Max(w => w.Height);
         _bottom -= Math.Max(height, currentHeight) - currentHeight;
 
-        return _bottom >= _rect.Bottom;
+        return Double.IsNaN(_rect.Height) || _bottom >= _rect.Bottom;
     }
 
     /// <summary>
@@ -488,7 +489,7 @@ public class TextFlowEngine
         _currentLine!.Clear();
         _bottom -= height;
 
-        return _bottom >= _rect.Bottom;
+        return Double.IsNaN(_rect.Height) || _bottom >= _rect.Bottom;
     }
 
     /// <summary>

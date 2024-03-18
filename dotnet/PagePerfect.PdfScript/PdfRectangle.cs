@@ -48,7 +48,7 @@ public struct PdfRectangle(double left, double bottom, double width, double heig
     /// <summary>
     /// Returns the top-most coordinate of the rectangle.
     /// </summary>
-    public readonly double Top => Bottom + Height;
+    public readonly double Top => double.IsNaN(Height) ? Bottom : Bottom + Height;
 
     /// <summary>
     /// Returns a value that represents an empty object reference.

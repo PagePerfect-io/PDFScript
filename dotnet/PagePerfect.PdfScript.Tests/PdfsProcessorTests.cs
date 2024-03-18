@@ -771,6 +771,7 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
         await writer.Received(1).WriteValue(new PdfsValue("Hello, world!"));
         await writer.Received(1).WriteRawContent(" Tj\r\n");
+        await writer.Received(1).WriteRawContent("BT\r\n");
     }
 
     /// <summary>
@@ -782,7 +783,7 @@ public class PdfsProcessorTests
     {
         using var stream = S(
             "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
-            "BT /ManropeRegular 24 Tf 1 0 0 1 100 100 Tm 300 auto Tb (The quick brown fox jumps over the lazy dog.) Tfl ET");
+            "BT /ManropeRegular 24 Tf 1 0 0 1 100 100 Tm 300 /Auto Tb (The quick brown fox jumps over the lazy dog.) Tfl ET");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
         writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
@@ -808,7 +809,7 @@ public class PdfsProcessorTests
     {
         using var stream = S(
             "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
-            "BT /ManropeRegular 24 Tf 1 Ta 1 0 0 1 100 100 Tm 300 auto Tb (The quick brown fox jumps over the lazy dog.) Tfl ET");
+            "BT /ManropeRegular 24 Tf 1 Ta 1 0 0 1 100 100 Tm 300 /Auto Tb (The quick brown fox jumps over the lazy dog.) Tfl ET");
 
         var writer = Substitute.For<IPdfDocumentWriter>();
         writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
