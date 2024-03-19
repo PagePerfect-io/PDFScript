@@ -60,9 +60,16 @@ class Program
     /// <param name="config">The configuration.</param>
     private static async Task Run(Configuration config)
     {
-        var outputFile = config.OutputFile ?? Path.ChangeExtension(config.InputFile, ".pdf");
-        var doc = new Document(File.OpenRead(config.InputFile!));
-        await doc.SaveAs(outputFile!);
+        try
+        {
+            var outputFile = config.OutputFile ?? Path.ChangeExtension(config.InputFile, ".pdf");
+            var doc = new Document(File.OpenRead(config.InputFile!));
+            await doc.SaveAs(outputFile!);
+        }
+        catch (Exception ex)
+        {
+            System.Console.Error.WriteLine(ex.Message);
+        }
     }
 
     /// <summary>

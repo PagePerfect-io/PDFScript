@@ -10,6 +10,7 @@ public static class FontUtilities
     #region Private fields
     private static readonly List<string> s_safeFonts = [];
     private static readonly List<string> s_standardFonts = [];
+    private static readonly Dictionary<string, string> s_standardFontMap = new(StringComparer.OrdinalIgnoreCase);
     #endregion
 
 
@@ -41,6 +42,20 @@ public static class FontUtilities
     {
         return s_standardFonts.Exists(font => fontName.TrimStart('/').Equals(font, StringComparison.InvariantCultureIgnoreCase));
     }
+
+    /// <summary>
+    /// Tries to get a standardised, standard font name from the specified font name.
+    /// This method accepts font names that are similar to the standard names, 
+    /// and returns the standard name. Specifically it supports the form 'TimesRoman'
+    /// for 'Times-Roman' and performs a case-insensitive comparison.
+    /// </summary>
+    /// <param name="fontName">The specified font name.</param>
+    /// <param name="standardFontName">The matching standard name.</param>
+    /// <returns>True if a match was found; False otherwise.</returns>
+    public static bool TryGetStandardFontName(string fontName, out string? standardFontName)
+    {
+        return s_standardFontMap.TryGetValue(fontName, out standardFontName);
+    }
     #endregion
 
 
@@ -64,6 +79,7 @@ public static class FontUtilities
     private static void AddStandardFont(string font)
     {
         s_standardFonts.Add(font);
+        s_standardFontMap[font.Replace("-", "")] = font;
     }
 
     /// <summary>

@@ -371,12 +371,12 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// <returns>The font resource.</returns>
     private async Task<Font> ResolveFont(string fontName)
     {
-        if (FontUtilities.IsStandardFont(fontName))
+        if (FontUtilities.TryGetStandardFontName(fontName, out var standardFontName))
         {
-            if (_localResources.TryGetValue(fontName, out var resource)) return (Font)resource!;
+            if (_localResources.TryGetValue(standardFontName!, out var resource)) return (Font)resource!;
 
-            var font = _writer.CreateStandardFont(fontName);
-            _localResources[fontName] = font;
+            var font = _writer.CreateStandardFont(standardFontName!);
+            _localResources[standardFontName!] = font;
 
             return font;
         }

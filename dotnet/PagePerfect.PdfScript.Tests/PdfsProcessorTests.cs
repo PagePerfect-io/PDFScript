@@ -372,6 +372,27 @@ public class PdfsProcessorTests
     }
 
     /// <summary>
+    /// The processor should include a standard font in the document
+    /// and be able to refer to Times-Roman as /TimesRoman, and so on.
+    /// </summary>
+    [Fact]
+    public async Task ShouldUseStandardFontWithDash()
+    {
+        using var stream = S("BT /TimesRoman 24 Tf 100 100 Td (Hello, world!) Tj ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateStandardFont("/Times-Roman").Returns(new StandardFont(new PdfObjectReference(1, 0), "F1", "Times-Roman", null));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a call to CreateStandardFont and AddResourceToPage
+        writer.Received(1).CreateStandardFont("/Times-Roman");
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+    }
+
+
+    /// <summary>
     /// The processor should output a text object between Bt..ET operations.
     /// </summary>
     /// <returns></returns>
@@ -864,6 +885,15 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteRawContent("ET\r\n");
     }
 
+    /// <summary>
+    /// The processor should place text on a single line, when given a set of text spans
+    /// with various styles.
+    /// </summary>
+    [Fact]
+    public async Task ShouldFlowSingleLineTextSpans()
+    {
+
+    }
     #endregion
 
     #region Measuring text lines
