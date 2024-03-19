@@ -54,7 +54,7 @@ public static class FontUtilities
     /// <returns>True if a match was found; False otherwise.</returns>
     public static bool TryGetStandardFontName(string fontName, out string? standardFontName)
     {
-        return s_standardFontMap.TryGetValue(fontName, out standardFontName);
+        return s_standardFontMap.TryGetValue(fontName.TrimStart('/'), out standardFontName);
     }
     #endregion
 
@@ -79,7 +79,7 @@ public static class FontUtilities
     private static void AddStandardFont(string font)
     {
         s_standardFonts.Add(font);
-        s_standardFontMap[font.Replace("-", "")] = font;
+        s_standardFontMap[font.Replace("-", "")] = $"/{font}";
     }
 
     /// <summary>
