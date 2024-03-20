@@ -33,6 +33,8 @@
   <ItemGroup>
     <None Update="Console/Data/input.pdfs" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Data/pageperfect-logo.jpg" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Data/pageperfect-logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="Data/pageperfect-logo" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Data/Manrope-Regular.ttf" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Data/Andes-Black.ttf" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

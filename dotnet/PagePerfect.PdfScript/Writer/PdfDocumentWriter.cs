@@ -893,13 +893,11 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// <exception cref="PdfDocumentWriterException">There was an error writing the image.</exception>
     private async Task WriteImage(Image image)
     {
-        var imageType = ImageUtilities.GetImageType(image.Filename);
-        if (ImageType.Jpeg != imageType) throw
+        var info = JpegUtilities.Parse(image.Filename);
+        if (null == info) throw
             new NotSupportedException("Only JPEG images are supported in this version of the library.");
 
         var file = new FileInfo(image.Filename);
-
-        var info = JpegUtilities.Parse(image.Filename);
 
         await OpenObject(image.ObjectReference, "XObject");
         await _writer.WriteLineAsync($"\t/Subtype\t/Image");
@@ -909,7 +907,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
 
         await _writer.WriteLineAsync($"\t/ColorSpace\t/{info.ColourSpace}");
 
-        if (ColourSpace.DeviceCMYK == info.ColourSpace && ImageType.Jpeg == imageType)
+        if (ColourSpace.DeviceCMYK == info.ColourSpace)
         { await _writer.WriteLineAsync($" /Decode\t[1 0 1 0 1 0 1 0]"); }
 
         await _writer.WriteLineAsync($"\t/BitsPerComponent\t8");

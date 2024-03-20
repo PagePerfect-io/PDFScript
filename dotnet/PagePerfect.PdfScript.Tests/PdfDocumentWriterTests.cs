@@ -195,6 +195,55 @@ public class PdfDocumentWriterTests
         stream.Seek(0, SeekOrigin.Begin);
         File.WriteAllBytes("Data/image-write-test.pdf", stream.ToArray());
     }
+
+    /// <summary>
+    /// The PdfDocumentWriter should throw an exception when the image
+    /// is not a recognised JPEG image.
+    /// </summary>
+    /// <returns></returns>
+    [Fact]
+    public async Task ShouldThrowWhenImageNotJpeg()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var img = writer.CreateImage("Data/pageperfect-logo.png");
+        await writer.WriteRawContent($"100 0 0 100 200 300 cm\r\n");
+        await writer.WriteRawContent($"/{img.Identifier} Do\r\n");
+        writer.AddResourceToPage(img);
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+
+        await Assert.ThrowsAsync<NotSupportedException>(writer.Close);
+    }
+
+    /// <summary>
+    /// The PdfDocumentWriter class should support JPEG images
+    /// regardless of the file extension.
+    /// </summary>
+    [Fact]
+    public async Task ShouldNotRelyOnJpegExtension()
+    {
+        using var stream = new MemoryStream();
+
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var img = writer.CreateImage("Data/pageperfect-logo");
+        await writer.WriteRawContent($"100 0 0 100 200 300 cm\r\n");
+        await writer.WriteRawContent($"/{img.Identifier} Do\r\n");
+        writer.AddResourceToPage(img);
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+        await writer.Close(); // Does not throw
+    }
+
     #endregion
 
     #region Standard font tests

@@ -79,7 +79,6 @@ class Program
             System.Console.WriteLine($"\x1b[1m\x1b[102m INFO \x1b[0m {message}");
     }
 
-
     /// <summary>
     /// Runs the PDFScript file. This method is called when the user provides the "run" command,
     /// or when the user provides the "watch" command and a file-change is detected.
