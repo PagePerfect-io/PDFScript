@@ -43,7 +43,7 @@ class Program
         }
         catch (Exception ex)
         {
-            System.Console.Error.WriteLine(ex.Message);
+            LogError(ex.Message);
         }
     }
     #endregion
@@ -52,7 +52,34 @@ class Program
 
     // Private implementation
     // ======================
-    #region Privagte implementation
+    #region Private implementation
+    /// <summary>
+    /// Logs an error message to the console. This method uses the ANSI escape codes to color the output,
+    /// unless the console is redirected. 
+    /// </summary>
+    /// <param name="message">The message.</param>
+    private static void LogError(string message)
+    {
+        if (System.Console.IsErrorRedirected)
+            System.Console.Error.WriteLine($"ERR: {message}");
+        else
+            System.Console.Error.WriteLine($"\x1b[1m\x1b[101m ERROR \x1b[0m {message}");
+    }
+
+    /// <summary>
+    /// Logs an informational message to the console. This method uses the ANSI escape codes 
+    /// to color the output, unless the console is redirected. 
+    /// </summary>
+    /// <param name="message">The message.</param>
+    private static void LogInfo(string message)
+    {
+        if (System.Console.IsOutputRedirected)
+            System.Console.WriteLine($"INFO: {message}");
+        else
+            System.Console.WriteLine($"\x1b[1m\x1b[102m INFO \x1b[0m {message}");
+    }
+
+
     /// <summary>
     /// Runs the PDFScript file. This method is called when the user provides the "run" command,
     /// or when the user provides the "watch" command and a file-change is detected.
@@ -68,7 +95,7 @@ class Program
         }
         catch (Exception ex)
         {
-            System.Console.Error.WriteLine(ex.Message);
+            LogError(ex.Message);
         }
     }
 
@@ -107,14 +134,14 @@ class Program
         };
         watcher.Changed += async (sender, e) =>
         {
-            System.Console.WriteLine($"File {e.FullPath} has changed. Re-running...");
+            LogInfo($"{e.FullPath} has changed. Re-running...");
             config.InputFile = e.FullPath;
             config.OutputFile = Path.ChangeExtension(e.FullPath, ".pdf");
             await Run(config);
         };
         watcher.Error += (sender, e) =>
         {
-            System.Console.Error.WriteLine($"Error: {e.GetException()}");
+            LogError($"{e.GetException()}");
         };
 
         watcher.EnableRaisingEvents = true;
@@ -143,12 +170,12 @@ class Program
         {
             if (e.FullPath != full) { return; }
 
-            System.Console.WriteLine($"File {e.FullPath} has changed. Re-running...");
+            LogInfo($"File {e.FullPath} has changed. Re-running...");
             await Run(config);
         };
         watcher.Error += (sender, e) =>
         {
-            System.Console.Error.WriteLine($"Error: {e.GetException()}");
+            LogError($"{e.GetException()}");
         };
         watcher.EnableRaisingEvents = true;
         watcher.IncludeSubdirectories = false;
