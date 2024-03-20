@@ -886,14 +886,45 @@ public class PdfsProcessorTests
     }
 
     /// <summary>
+    /// The processor should align text vertically, when the text box has a set height but
+    /// an auto width.
+    /// </summary>
+    [Fact]
+    public async Task ShouldAlignSingleLineVertically()
+    {
+        using var stream = S(
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 1 0 0 1 100 100 Tm 1 TA /Auto 300 Tb (Hello, world!) Tfl ET");
+
+        var manrope = TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf");
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(manrope);
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a single call to draw text as the content fits on a line.
+        // We also expect a Td operation that moves the text vertically.
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+
+        var descent = manrope.GetDescent(24f);
+        var offset = 300 - (300 - 24) / 2;
+        await writer.Received(1).WriteRawContent($"0 {Math.Round(offset - 24 - descent, 3)} Td\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("Hello, world!"));
+        await writer.Received(1).WriteRawContent(" Tj\r\n");
+        await writer.Received(1).WriteRawContent("BT\r\n");
+    }
+
+    /// <summary>
     /// The processor should place text on a single line, when given a set of text spans
     /// with various styles.
     /// </summary>
-    [Fact]
-    public async Task ShouldFlowSingleLineTextSpans()
-    {
-
-    }
+    //[Fact]
+    //public async Task ShouldFlowSingleLineTextSpans()
+    //  {
+    //
+    //}
     #endregion
 
     #region Measuring text lines

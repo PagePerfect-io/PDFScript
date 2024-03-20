@@ -882,12 +882,27 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         // but simply write a single line.
         if (float.IsNaN(_textBoxConstraint.Width))
         {
+            // We do want to align the text vertically, if a height is set.
+            if (!float.IsNaN(_textBoxConstraint.Height))
+            {
+                var lineHeight = _graphicsState.FontSize;
+                var offset = _graphicsState.VerticalTextAlignment switch
+                {
+                    VerticalTextAlignment.Top => _textBoxConstraint.Height,
+                    VerticalTextAlignment.Middle => _textBoxConstraint.Height - (_textBoxConstraint.Height - lineHeight) / 2f,
+                    VerticalTextAlignment.Bottom => lineHeight,
+                    _ => 0
+                };
+                offset -= lineHeight;
+                offset -= (float)_graphicsState.Font.GetDescent(_graphicsState.FontSize);
+                await _writer.WriteRawContent($"0 {Math.Round(offset, 3)} Td\r\n");
+            }
+
             await _writer.WriteValue(text);
             await _writer.WriteRawContent(" Tj\r\n");
             return;
 
             // TODO: measure width, set height to font size, return 1 line
-            // TODO: vertically center text
         }
 
         //TODO: use NaN for height of Rect and deal with this in Engine
