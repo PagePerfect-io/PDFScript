@@ -1,28 +1,12 @@
-# PDFScript - a transpiler for PDF
+# PDFScript
 
-Build passing badge here
-
-## Latest release
-
-Binaries at Github Releases: https://github.com
-
-.Net package at NuGet: https://nuget.org
-
-Nuget badge `PagePerfect.PdfScript`
-
-## Further reading
-
-Link
-Link
-Link
-
-## Introduction
-
-PDFScript is a transpiler for PDF: an improved and simplified PDF-derived language to create good looking documents using low-level PDF graphics instructions and simplified resource management.
+A transpiler for PDF: an improved and simplified language to create good looking documents.
 
 PDFScript lets you focus on the page content while it handles the plumbing of creating a PDF file.
 
-You create a PDFScript in a `.pdfs` file, and produce a PDF via the CLI or via the .Net class library, from within your own project.
+You create a PDFScript in a `.pdfs` file, and produce a PDF via the CLI or via the .net NuGet package, from within your own project.
+
+## Example
 
 The following is a valid `.pdfs` file that produces a one-page document:
 
@@ -30,61 +14,7 @@ The following is a valid `.pdfs` file that produces a one-page document:
 1.0 0.2 0.8 rg 10 10 200 150 re f
 ```
 
-The syntax of this minimal file is identical to the syntax of the ‘content stream’ inside the generated PDF file. PDFScript handles the stuff around this content, including resources such as images and fonts.
-
-## How to use PDFScript
-
-### Command line utility or API
-
-Use the `pdfs` CLI to process PDFScript from the command-line:
-
-```
-pdfs run document.pdfs output.pdf
-```
-
-Or use the .NET NuGet package to create PDFs from your .net project.
-
-```
-dotnet add package PagePerfect.PdfScript
-```
-
-```c#
-using PagePerfect.PdfScript;
-
-// Write a PDF document to a file on the local file system.
-var  doc = new Document(“10 600 100 100 10 10 rr f”);
-await doc.SaveAs(“Output.pdf”);
-
-// Or, write a PDF document to a stream.
-using var output = new MemoryStream();
-var another = new Document("BT /TimesRoman 12 Tf 72 144 Td (Hello, World!) Tj ET");
-await another.ToStream(output);
-```
-
-### Interactive writing with the CLI
-
-![alt text](docs/interactive-vscode.jpg)
-
-Image: _Editing a .pdfs file in Visual Studio Code_
-
-#### Watching for file changes
-
-Using the `watch` command, te CLI can watch a file or directory for changes and re-process the PDFScript file when it changes.
-
-To watch a single file:
-
-```
-pdfs watch document.pdfs output.pdf
-
-```
-
-To watch a directory:
-
-```
-pdfs watch directory
-```
-
-**Note:** The CLI will watch for changes to `.pdfs` files in the directory and its subdirectories, and will process them into PDF files in the same directory structure. Each output file will have a matching filename, but with the `.pdf` extension.
+The syntax of this minimal file is identical to the syntax of the ‘content stream’ inside the generated PDF file. PDFScript handles the stuff around this content.
 
 ## Why use PDFScript?
 
