@@ -13,7 +13,7 @@ public class IntegrationTests
     // =========
     #region Constants
     private const string consolePath = "../../../../PagePerfect.PdfScript.Console/bin/Debug/net8.0";
-    private const string consoleExecutable = "PagePerfect.PdfScript.Console";
+    private const string consoleExecutable = "pdfs";
     #endregion
 
 
