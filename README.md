@@ -1,6 +1,6 @@
 # PDFScript - a transpiler for PDF
 
-Build passing badge here
+![Build passing badge](https://github.com/PagePerfect-io/PDFScript/actions/workflows/dotnet.yml/badge.svg)
 
 ## Latest release
 
