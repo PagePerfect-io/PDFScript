@@ -4,11 +4,9 @@
 
 ## Latest release
 
-Binaries at Github Releases: https://github.com
+Binaries at [Github Releases](<(https://github.com/PagePerfect-io/PDFScript/releases)>)
 
-.Net package at NuGet: https://nuget.org
-
-Nuget badge `PagePerfect.PdfScript`
+[![NuGet version (PagePerfect.PdfScript)](https://img.shields.io/nuget/v/PagePerfect.PdfScript.svg?style=flat-square)](https://www.nuget.org/packages/PagePerfect.PdfScript/) `PagePerfect.PdfScript`
 
 ## Further reading
 
