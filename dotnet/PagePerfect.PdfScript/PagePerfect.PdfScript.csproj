@@ -21,14 +21,14 @@
     <PackageIcon>pageperfect-logo.png</PackageIcon>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/PagePerfect-io/PDFScript</RepositoryUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReadmeFile>nuget-readme.md</PackageReadmeFile>
   </PropertyGroup>
 
   <!-- Ensure that the .afm files are included in the NuGet package -->
   <ItemGroup>
     <EmbeddedResource Include="Writer\Resources\Metrics\*.afm" CopyToOutputDirectory="Never" />
     <None Include="..\..\docs\pageperfect-logo.png" Pack="true" PackagePath="\"/>
-    <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+    <None Include="..\..\docs\nuget-readme.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Nerdbank.GitVersioning" Version="3.6.133">
