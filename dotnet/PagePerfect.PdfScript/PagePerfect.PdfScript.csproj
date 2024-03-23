@@ -3,7 +3,7 @@
     <AssemblyName>PagePerfect.PdfScript</AssemblyName>
     <Title>PagePerfect.PdfScript</Title>
     <PackageTags>pdf</PackageTags>
-    <Description>A transpiler for PDF - create beautiful documents with low-level PDF graphics commands.</Description>
+    <Description>A transpiler for PDF: an improved and simplified language to create good looking documents.</Description>
     <Authors>Edwin Groenendaal</Authors>
     <TargetFrameworks>net8.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
