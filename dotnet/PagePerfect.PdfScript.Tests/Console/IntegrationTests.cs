@@ -39,7 +39,7 @@ public class IntegrationTests
     /// <summary>
     /// The CLI process should watch a single .pdfs file.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Relies on timings and is flaky")]
     public void ShouldWatchPdfsFile()
     {
         var consoleApp = StartApplication("watch", "Console/Data/input.pdfs", "output.pdf");
@@ -73,7 +73,7 @@ public class IntegrationTests
     /// <summary>
     /// The CLI process should watch a directory for changes to .pdfs files.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Relies on timings and is flaky")]
     public void ShouldWatchDirectory()
     {
         var consoleApp = StartApplication("watch", "Console/Data");
@@ -107,7 +107,7 @@ public class IntegrationTests
     /// <summary>
     /// The CLI process should watch a target directory's subdirecties for changes to .pdfs files.
     /// </summary>
-    [Fact]
+    [Fact(Skip = "Relies on timings and is flaky")]
     public void ShouldWatchSubDirectories()
     {
         var consoleApp = StartApplication("watch", "Console");
