@@ -668,4 +668,4 @@ Where `<alignment>` is a number that defines the vertical text alignment. The va
 
 # Further reading
 
-- [Syntax and structure](docs/syntax-and-structure.md)
+- [Syntax and structure](syntax-and-structure.md)

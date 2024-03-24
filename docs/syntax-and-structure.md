@@ -7,6 +7,19 @@ the syntax of PDF graphics instructions, with some improvements.
 
 Users familiar with PDF content streams will recognise the operators and basic data types.
 
+This page covers:
+
+- [Syntax](#syntax)
+- [File structure](#file-structure)
+  - [Prologue statements](#prologue-statements)
+    - [Resource declarations](#resource-declarations)
+    - [Variable declarations](#variable-declarations)
+    - [Pattern declarations](#pattern-declarations)
+    - [Color declarations](#color-declarations)
+  - [Content](#content)
+    - [Page structure](#page-structure)
+    - [Specify page sizes](#specify-page-sizes)
+
 ## Syntax
 
 ### Graphics operations
@@ -27,14 +40,14 @@ For example, to draw a line from (10, 10) to (100, 100):
 
 PDFScript uses a subset of the data types used in PDF files, plus an additional data type for variables.
 
-- Numbers: numbers are single-precision floating point numbers, such as `10` or `3.14`. Exponential notation is not supported.
-- Strings: strings are enclosed in parentheses, such as `(Hello, World!)`. A PDFScript string is a series of UTF-8 encoded characters.
-- Names: names are written with a leading slash, such as `/DeviceRGB`. Names are used to identify resources in a PDF file, and refer to enumerated values.
-- Arrays: arrays are enclosed in square brackets, such as `[10 20 30]`. Arrays are used to group operands together. An array can contain any data type.
-- Dictionaries: dictionaries are enclosed in double angle brackets, like this: `<< /Type /Catalog >>`. Dictionary keys are names. Values can by any data type.
-- Booleans: the boolean values are `true` and `false`.
-- Keywords: keywords are string values that are primarily used as operators, such as `BT` and `ET`.
-- Variables are used to represent one of the above values. A variable starts with a `$`, for example `$myWidth`.
+- **Numbers**: numbers are single-precision floating point numbers, such as `10` or `3.14`. Exponential notation is not supported.
+- **Strings**: strings are enclosed in parentheses, such as `(Hello, World!)`. A PDFScript string is a series of UTF-8 encoded characters.
+- **Names**: names are written with a leading slash, such as `/DeviceRGB`. Names are used to identify resources in a PDF file, and refer to enumerated values.
+- **Arrays**: arrays are enclosed in square brackets, such as `[10 20 30]`. Arrays are used to group operands together. An array can contain any data type.
+- **Dictionaries**: dictionaries are enclosed in double angle brackets, like this: `<< /Type /Catalog >>`. Dictionary keys are names. Values can by any data type.
+- **Booleans**: the boolean values are `true` and `false`.
+- **Keywords**: keywords are string values that are primarily used as operators, such as `BT` and `ET`.
+- **Variables** are used to represent one of the above values. A variable starts with a `$`, for example `$myWidth`.
 
 #### Numbers
 
@@ -323,4 +336,4 @@ To specify a custom page size, use the width and height in points:
 
 # Further reading
 
-- [Graphics operations](docs/graphics-operations.md)
+- [Graphics operations](graphics-operations.md)
