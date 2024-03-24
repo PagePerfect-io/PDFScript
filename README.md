@@ -10,10 +10,9 @@ Binaries at [Github Releases](https://github.com/PagePerfect-io/PDFScript/releas
 
 ## Further reading
 
-Coming soon:
+- [Syntax and structure](docs/syntax-and-structure.md)
 
-- doc/document-structure.md
-- doc/graphics-operators.md
+- [Graphics operations](docs/graphics-operations.md)
 
 ## Introduction
 
