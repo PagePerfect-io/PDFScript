@@ -66,9 +66,9 @@ PDFScript takes care of the binary formatting of a PDF document. A `.pdfs` file 
 In fact a `.pdfs` file consists only of content. Even a multi-page document can be expressed without the need of a document structure:
 
 ```
-BT 1 0 0 1 20 810 Tm /TimeRoman 12 Tf (Hello, World!) Tj ET
+BT 1 0 0 1 20 810 Tm /TimesRoman 12 Tf (Hello, World!) Tj ET
 endpage
-BT 1 0 0 1 20 810 Tm /TimeRoman 12 Tf (Hello, page two!) Tj ET
+BT 1 0 0 1 20 810 Tm /TimesRoman 12 Tf (Hello, page two!) Tj ET
 ```
 
 The graphics operators are the same as in a PDF file, and the syntax for expressing numbers, strings and so on is also the same. With a few exceptions, you can use a PDF reference to understand the syntax of a `.pdfs` file.
