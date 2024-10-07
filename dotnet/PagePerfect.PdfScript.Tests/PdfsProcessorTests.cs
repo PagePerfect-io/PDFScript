@@ -237,6 +237,37 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteRawContent("f\r\n");
     }
 
+    /// <summary>
+    /// The processor should be able to use an injected variable value in place of the value in the declaration.
+    /// </summary>
+    [Fact]
+    public async Task ShouldResolveInjectedVariable()
+    {
+        using var stream = S("# var $width /Number 100 # var $height /Number 200 10 10 $width $height re f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await PdfsProcessor.Process(stream, writer, new { width = 111, height = new PdfsValue(222) });
+
+        // We expect calls to write values 10, 10, 111, 222.
+        await writer.Received(2).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 10));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 111));
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Number && v.GetNumber() == 222));
+        await writer.Received(1).WriteRawContent("re\r\n");
+        await writer.Received(1).WriteRawContent("f\r\n");
+    }
+
+    /// <summary>
+    /// The processor should throw an exception when an injected value does not have the correct type.
+    /// </summary>
+    [Fact]
+    public async Task ShouldThrowWhenInjectedVariableIsOfIncorrectType()
+    {
+        using var stream = S("# var $width /Number 100 # var $height /Number 200 10 10 $width $height re f");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        await Assert.ThrowsAsync<PdfsProcessorException>(() => PdfsProcessor.Process(stream, writer, new { width = 111, height = "Edwin" }));
+    }
+
     #endregion
 
     #region Images and the Do operator
