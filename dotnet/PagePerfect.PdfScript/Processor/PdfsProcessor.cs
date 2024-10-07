@@ -1,8 +1,10 @@
+using System;
 using System.Runtime.CompilerServices;
 using PagePerfect.PdfScript.Processor.Text;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Reader.Statements;
 using PagePerfect.PdfScript.Reader.Statements.Prolog;
+using PagePerfect.PdfScript.Utilities;
 using PagePerfect.PdfScript.Writer;
 using PagePerfect.PdfScript.Writer.Resources.Fonts;
 using PagePerfect.PdfScript.Writer.Resources.Patterns;
@@ -191,7 +193,52 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private static async Task<string> DownloadResourceToTempFile(string location)
     {
         var localPath = Path.ChangeExtension(Path.GetTempFileName(), Path.GetExtension(location));
+        var (normalised, type) = FileUtilities.NormalisePath(location);
+        switch (type)
+        {
+            case FileLocationType.LocalFile:
+                if (!File.Exists(normalised)) throw new PdfsProcessorException($"Resource '{location}' does not exist, at '{normalised}'.");
 
+                File.Copy(normalised, localPath, true);
+                return localPath;
+
+            case FileLocationType.Internet:
+                try
+                {
+                    using var client = new HttpClient();
+                    using var stmIn = await client.GetStreamAsync(location);
+                    using var stmOut = File.OpenWrite(localPath);
+                    await stmIn.CopyToAsync(stmOut);
+
+                    return localPath;
+                }
+                catch (InvalidOperationException e)
+                {
+                    throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+                }
+                catch (HttpRequestException e)
+                {
+                    throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+                }
+                catch (IOException e)
+                {
+                    throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+                }
+                catch (TaskCanceledException e)
+                {
+                    throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+                }
+                catch (UriFormatException e)
+                {
+                    throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
+                }
+
+            default:
+                throw new PdfsProcessorException($"Failed to download resource '{location}'.");
+        }
+
+
+        /*
         if (File.Exists(location))
         {
             File.Copy(location, localPath, true);
@@ -229,6 +276,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 throw new PdfsProcessorException($"Failed to download resource '{location}'.", e);
             }
         }
+        */
     }
 
     /// <summary>
