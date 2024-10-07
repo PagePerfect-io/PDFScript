@@ -204,67 +204,67 @@ public enum Operator
     // Color instructions
     // ==================
     /// The CS operator - PDF1-7, p.196 - set the colour space.
-    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     CS,
 
     /// The cs operator - PDF1-7, p.196 - set the colour space.
-    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     cs,
 
     /// The SC operator - PDF1-7, p.196 - set the colour based on current colour space.
-    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     SC,
 
     /// The sc operator - PDF1-7, p.196 - set the colour based on current colour space.
-    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     sc,
 
     /// The SCN operator - PDF1-7, p.196 - set the colour based on current colour space.
-    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     SCN,
 
     /// The scn operator - PDF1-7, p.196 - set the colour based on current colour space.
-    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Name, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     scn,
 
     /// The G operator - PDF1-7, p.196 - set a gray colour.
-    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     G,
 
     /// The g operator - PDF1-7, p.196 - set a gray colour.
-    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     g,
 
     /// The RG operator - PDF1-7, p.196 - set an RGB colour.
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     RG,
 
     /// The rg operator - PDF1-7, p.196 - set an RGB colour.
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     rg,
 
     /// The K operator - PDF1-7, p.196 - set a CMYK colour.
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     K,
 
     /// The k operator - PDF1-7, p.196 - set a CMYK colour.
-    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page)]
+    [GraphicsOperation(PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, PdfsValueKind.Number, AllowedIn = GraphicsObject.Page | GraphicsObject.Text)]
     k,
 
 
