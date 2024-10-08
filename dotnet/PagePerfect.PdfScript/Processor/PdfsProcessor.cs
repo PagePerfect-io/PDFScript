@@ -810,9 +810,9 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await WriteTflOperation(op);
                 break;
 
-            //            case Operator.Tj:
-            //              await WriteTjOperation(op);
-            //            break;
+            case Operator.TFL:
+                await WriteTFLOperation(op);
+                break;
 
             case Operator.rr:
                 await WriteRoundedRectangleOperation(op);
@@ -960,6 +960,89 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         // Update the graphics state.
         _graphicsState.FontSize = fontSize;
         _graphicsState.Font = font;
+    }
+
+    /// <summary>
+    /// Writes a TFL operation. This method will perform a text-flow operation
+    /// and then output text lines to the PDF document writer. As a side-effect,
+    /// this method will also set the system variables for text width, text height,
+    /// and number of text lines written. 
+    /// /// </summary>
+    /// <param name="op">The graphics operation.</param>
+    private async Task WriteTFLOperation(GraphicsOperation op)
+    {
+        if (null == _graphicsState.Font) throw new PdfsProcessorException("Set a font first before placing text.");
+        if (_graphicsState.FontSize <= 0) throw new PdfsProcessorException("Set a font size first before placing text.");
+
+        // If the text block constraint has auto width, we won't flow text
+        // but simply write a single TJ instruction.
+        if (float.IsNaN(_textBoxConstraint.Width))
+        {
+            // We do want to align the text vertically, if a height is set.
+            if (!float.IsNaN(_textBoxConstraint.Height))
+            {
+                var lineHeight = _graphicsState.FontSize;
+                var offset = _graphicsState.VerticalTextAlignment switch
+                {
+                    VerticalTextAlignment.Top => _textBoxConstraint.Height,
+                    VerticalTextAlignment.Middle => _textBoxConstraint.Height - (_textBoxConstraint.Height - lineHeight) / 2f,
+                    VerticalTextAlignment.Bottom => lineHeight,
+                    _ => 0
+                };
+                offset -= lineHeight;
+                offset -= (float)_graphicsState.Font.GetDescent(_graphicsState.FontSize);
+                await _writer.WriteRawContent($"0 {Math.Round(offset, 3)} Td\r\n");
+            }
+
+            await _writer.WriteValue(op.Operands[0]);
+            await _writer.WriteRawContent(" TJ\r\n");
+            return;
+
+            // TODO: measure width, set height to font size, return 1 line
+        }
+
+        //TODO: use NaN for height of Rect and deal with this in Engine
+        // TODO: Measure widest line, measure height, return number of lines.
+
+        // With a set width, we need to flow the text.
+        // If the text alignment is justified, then we need to force the
+        // word spacing to zero in the output if it's not currently zero.
+        // We will set it back to its previous value after we're done.
+        var components = ResolveOperand(op.Operands[0]).GetArray();
+
+        var needsForcedWordSpacing = _graphicsState.WordSpacing != 0 && HorizontalTextAlignment.FullyJustified == (_graphicsState.HorizontalTextAlignment & HorizontalTextAlignment.FullyJustified);
+        if (needsForcedWordSpacing) { await _writer.WriteRawContent($"0 Tw\r\n"); }
+
+        var rect = new PdfRectangle(0, 0, _textBoxConstraint.Width, _textBoxConstraint.Height);
+        var spans = components.Select(c => new Span(ResolveOperand(c).GetString(), _graphicsState.Font, _graphicsState.FontSize)).ToArray();
+        var engine = new TextFlowEngine(
+            new TextAlignmentOptions(
+                _graphicsState.HorizontalTextAlignment,
+                _graphicsState.VerticalTextAlignment),
+            _graphicsState.Leading,
+            _graphicsState.WordSpacing,
+            _graphicsState.CharacterSpacing,
+            _graphicsState.HorizontalScaling);
+        var lines = engine.FlowText(spans, rect);
+
+        // Write the lines to the output. We include the current font and size,
+        // so that the writer knows to avoid outputting multiple Tf operations.
+        // And, if needed we update the graphics state to reflect the font and size
+        // of the most recently written line span.
+        if (lines.Any())
+        {
+            await _writer.WriteLines(lines, _graphicsState.Font, _graphicsState.FontSize);
+
+            var last = lines.Last().Spans.Last();
+            _graphicsState.Font = last.Font;
+            _graphicsState.FontSize = last.FontSize;
+        }
+
+        // If we had to force 0 word spacing, we restore the state now.
+        if (needsForcedWordSpacing)
+        {
+            await _writer.WriteRawContent($"{_graphicsState.WordSpacing:F2} Tw\r\n");
+        }
     }
 
     /// <summary>
