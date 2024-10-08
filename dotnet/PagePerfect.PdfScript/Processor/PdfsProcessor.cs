@@ -36,6 +36,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     private GraphicsState _graphicsState = new();
     private Stack<GraphicsState> _graphicsStateStack = new();
     private (float Width, float Height) _textBoxConstraint = (float.NaN, float.NaN);
+    private dynamic? _injectedVariables;
     #endregion
 
 
@@ -64,8 +65,11 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// Processes the source stream into a PDF document.
     /// </summary>
     /// <param name="writer">The writer to use.</param>
-    public async Task Process()
+    public async Task Process(dynamic? variables)
     {
+        // Store the injected variables, we'll need them when we encounter a #var prolog statement.
+        _injectedVariables = variables;
+
         // We process statements from the reader until we reach the end of the stream.
         // Depending on the processor's state and the type of statement, we will
         // validate and output graphics instructions, prolog statements, or others.
@@ -129,10 +133,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     /// </summary>
     /// <param name="source">The source stream that contains a .pdfs script file.</param>
     /// <param name="writer">The writer to use.</param>
-    public static async Task Process(Stream source, IPdfDocumentWriter writer)
+    public static async Task Process(Stream source, IPdfDocumentWriter writer, dynamic? variables = null)
     {
         var processor = new PdfsProcessor(source, writer);
-        await processor.Process();
+        await processor.Process(variables);
     }
     #endregion
 
@@ -439,6 +443,41 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Resolves an injected variable. This method will check if the variable
+    /// has been injected, and if so, return the value. If the variable has not
+    /// been injected, this method will return a Null reference.
+    /// .Net types are converted to PDFScript types as follows:
+    /// - string: PdfsValueKind.String
+    /// - int: PdfsValueKind.Number
+    /// - float: PdfsValueKind.Number
+    /// - bool: PdfsValueKind.Boolean
+    /// 
+    /// Other types are not supported. 
+    /// </summary>
+    /// <param name="declaration">The variable declaration.</param>
+    /// <returns>The resolved value, or a Null reference.</returns>
+    /// <exception cref="PdfsProcessorException">The .Net type is not supported.</exception>
+    private PdfsValue? ResolveInjectedVariable(VarDeclaration declaration)
+    {
+        if (null == _injectedVariables) return null;
+        var prop = _injectedVariables.GetType().GetProperty(declaration.Name);
+        if (null == prop) return null;
+        //if (!_injectedVariables.ContainsKey(declaration.Name)) return null;
+
+        var value = prop.GetValue(_injectedVariables);
+        if (value is null) return null;
+        return value switch
+        {
+            string s => s.StartsWith('/') ? new PdfsValue(s, PdfsValueKind.Name) : new PdfsValue(s, PdfsValueKind.String),
+            int i => new PdfsValue(i),
+            float f => new PdfsValue(f),
+            bool b => new PdfsValue(b),
+            PdfsValue v => v,
+            _ => throw new PdfsProcessorException($"Injected variable '{declaration.Name}' is of an unsupported type.")
+        };
+    }
+
+    /// <summary>
     /// Resolves an operand. This method will resolve a variable by name,
     /// if the operand is a variable reference. If the operand is a dictionary
     /// or array, it will resolve its elements recursively.
@@ -569,7 +608,18 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
             throw new PdfsProcessorException($"Variable '{statement.Name}' is already defined.");
         }
 
-        _variables[statement.Name] = new PdfsVariable(statement.Name, statement.Value);
+        // Now, is there an injected variable value?
+        var injected = ResolveInjectedVariable(statement);
+        if (injected is not null)
+        {
+            if (injected.Kind != statement.Value.Kind) throw new PdfsProcessorException($"Variable '{statement.Name}' is of type '{statement.Value.Kind}', but the injected variable is of type '{injected.Kind}'.");
+            _variables[statement.Name] = new PdfsVariable(statement.Name, injected);
+        }
+        else
+        {
+            _variables[statement.Name] = new PdfsVariable(statement.Name, statement.Value);
+        }
+
         _reader.SetVariableType(statement.Name, statement.Datatype);
     }
 

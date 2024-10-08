@@ -43,7 +43,18 @@ public class Document(Stream stream)
     public async Task SaveAs(string path)
     {
         var writer = new PdfDocumentWriter(path);
-        await PdfsProcessor.Process(_stream, writer);
+        await PdfsProcessor.Process(_stream, writer, null);
+    }
+
+    /// <summary>
+    /// Saves the PDF document to the specified path. This method processes the
+    /// PDFScript content into a PDF document, and writes it to the specified path.
+    /// </summary>
+    /// <param name="path">The output path.</param>
+    public async Task SaveAs(string path, dynamic variables)
+    {
+        var writer = new PdfDocumentWriter(path);
+        await PdfsProcessor.Process(_stream, writer, variables);
     }
 
     /// <summary>
@@ -54,7 +65,18 @@ public class Document(Stream stream)
     public async Task ToStream(Stream output)
     {
         var writer = new PdfDocumentWriter(output);
-        await PdfsProcessor.Process(_stream, writer);
+        await PdfsProcessor.Process(_stream, writer, null);
+    }
+
+    /// <summary>
+    /// Saves the PDF document to the specified stream. This method processes the
+    /// PDFScript content into a PDF document, and writes it to the specified stream.
+    /// </summary>
+    /// <param name="output">The output stream.</param>
+    public async Task ToStream(Stream output, dynamic variables)
+    {
+        var writer = new PdfDocumentWriter(output);
+        await PdfsProcessor.Process(_stream, writer, variables);
     }
     #endregion
 }
