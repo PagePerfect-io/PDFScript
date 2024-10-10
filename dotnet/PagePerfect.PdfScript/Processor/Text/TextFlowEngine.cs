@@ -20,7 +20,7 @@ public class TextFlowEngine
     private PdfRectangle _rect; // The current working rectangle.
     private List<Line>? _lines; // The lines we will add to.
     private List<IWordMetric>? _currentLine; // The words on the current line.
-
+    private double _currentLineHeight; // The height of the current line.
     private readonly double _lineSpacing; // The line spacing.
     private readonly double _wordSpacing; // The word spacing.
     private readonly double _characterSpacing; // The character spacing.
@@ -211,16 +211,19 @@ public class TextFlowEngine
         if (null != _currentChunk)
         {
             if (words.Count == 0) return PlaceChunk(_currentChunk);
-            if (null == words.First())
+            var firstWord = words.First();
+            if (null == firstWord)
             {
                 if (!PlaceChunk(_currentChunk)) return false;
+                _currentChunk = null;
             }
             else
             {
-                _currentChunk.AddWord(words.First());
+                _currentChunk.AddWord(firstWord);
                 if (words.Count > 1)
                 {
                     if (!PlaceWord(_currentChunk)) return false;
+                    _currentChunk = null;
                 }
                 else
                 {
@@ -237,10 +240,12 @@ public class TextFlowEngine
         // a new chunk and remember it for the next span.
         for (var w = start; w < words.Count - 1; ++w)
         {
-            if (false == PlaceWord(words[w])) return false;
+            if (null == words[w]) continue;
+            if (false == PlaceWord(words[w]!)) return false;
         }
 
-        if (null != words.LastOrDefault()) _currentChunk = new Chunk(words.Last());
+        var lastWord = words[^1];
+        if (null != lastWord) _currentChunk = new Chunk(lastWord);
 
         return true;
     }
@@ -307,18 +312,34 @@ public class TextFlowEngine
     /// text ratio options.
     /// </summary>
     /// <returns>The words.</returns>
-    private List<WordMetric> MeasureWords(Span span)
+    private List<WordMetric?> MeasureWords(Span span)
     {
         var space = span.Font.MeasureSpace(span.FontSize, _characterSpacing, _textRatio);
 
-        var words = span.Text.Split(separators, StringSplitOptions.RemoveEmptyEntries);
+        var words = span.Text.Split(separators, StringSplitOptions.None);
 
-        return words.Select(w => new WordMetric(w, span.Font)
+        List<WordMetric?> metrics = [];
+        if (words.Length == 0) return metrics;
+
+        for (var i = 0; i < words.Length; i++)
         {
-            FontSize = span.FontSize,
-            Space = (float)space,
-            Width = (float)span.Font.MeasureString(w, span.FontSize, _characterSpacing, _textRatio)
-        }).ToList();
+            var word = words[i];
+            if ("" == word)
+            {
+                if (i == 0 || i == words.Length - 1) metrics.Add(null);
+            }
+            else
+            {
+                metrics.Add(new WordMetric(word, span.Font)
+                {
+                    FontSize = span.FontSize,
+                    Space = (float)space,
+                    Width = (float)span.Font.MeasureString(word, span.FontSize, _characterSpacing, _textRatio)
+                });
+            }
+        }
+
+        return metrics;
     }
 
     /// <summary>
@@ -376,24 +397,26 @@ public class TextFlowEngine
                     {
                         spans.Add(new LineSpan(
                         new PdfRectangle(left, _bottom, width, previous!.Height),
-                        previous.Font,
-                        previous.FontSize,
-                        text.ToString()));
+                            previous.Font,
+                            previous.FontSize,
+                            text.ToString()));
+                        text.Clear();
                     }
                     left += width;
                     for (var cw = 0; cw < chunk.Words.Count; cw++)
                     {
                         var chunkWord = chunk.Words[cw];
                         width = chunkWord.Width;
-                        if (spans.Count != 0 && 0 == cw) { width += chunkWord.Space + _wordSpacing; }
+                        if (spans.Count != 0 && 0 == cw) { text.Append(' '); width += chunkWord.Space + _wordSpacing; }
+                        text.Append(chunkWord.Text);
                         spans.Add(new LineSpan(
                             new PdfRectangle(left, _bottom, width, chunkWord.Height),
                             chunkWord.Font,
                             chunkWord.FontSize,
-                            chunkWord.Text));
+                            text.ToString()));
                         left += width;
+                        text.Clear();
                     }
-                    text.Clear();
                     width = 0;
                     previous = null;
                     break;
@@ -470,8 +493,7 @@ public class TextFlowEngine
     /// <returns>True if the operation succeeded; False otherwise.</returns>
     private bool TryExpandExistingLine(double height)
     {
-        var currentHeight = _currentLine!.Max(w => w.Height);
-        _bottom -= Math.Max(height, currentHeight) - currentHeight;
+        _bottom -= Math.Max(height, _currentLineHeight) - _currentLineHeight;
 
         return Double.IsNaN(_rect.Height) || _bottom >= _rect.Bottom;
     }
@@ -488,6 +510,7 @@ public class TextFlowEngine
         _left = 0;
         _currentLine!.Clear();
         _bottom -= height;
+        _currentLineHeight = height;
 
         return Double.IsNaN(_rect.Height) || _bottom >= _rect.Bottom;
     }

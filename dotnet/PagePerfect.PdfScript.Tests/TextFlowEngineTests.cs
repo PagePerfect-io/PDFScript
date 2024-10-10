@@ -1,3 +1,4 @@
+using NSubstitute.Routing.AutoValues;
 using PagePerfect.PdfScript.Processor.Text;
 using PagePerfect.PdfScript.Writer;
 
@@ -481,6 +482,205 @@ public class TextFlowEngineTests
         Assert.Equal(Math.Round(100 - 12 - descent, 2), Math.Round(first.BoundingBox.Bottom, 2));
         Assert.Equal(Math.Round(100d - 12d - 15d - descent, 2), Math.Round(second.BoundingBox.Bottom, 2));
         Assert.Equal(Math.Round(100d - 12d - 15d - 15d - descent, 2), Math.Round(third.BoundingBox.Bottom, 2));
+    }
+
+    /// <summary>
+    /// The TextFlowEngine should support a trivial line (where all content fits) with multiple spans.
+    /// </summary>
+    [Fact]
+    public void ShouldSupportMultipleSpansOnTrivialLine()
+    {
+        using var output = new MemoryStream();
+        var writer = new PdfDocumentWriter(output);
+        var font = writer.CreateStandardFont("Helvetica");
+
+        var engine = new TextFlowEngine(TextAlignmentOptions.Default);
+        var lines = engine.FlowText([new Span("Hello, ", font, 12), new Span("world!", font, 12)], new PdfRectangle(0, 0, 100, 100));
+
+        // Expect a single line with a single span, because the font is the same and the spans represent individual
+        // words.
+        Assert.Single(lines);
+        Assert.Single(lines.First().Spans);
+
+        // The text should match the input.
+        var linespan = lines.First().Spans.First();
+        Assert.Equal("Hello, world!", linespan.Text);
+        Assert.Equal(font, linespan.Font);
+        Assert.Equal(12, linespan.FontSize);
+
+        // Check the width of the span(s).
+        var expected = font.MeasureString("Hello, world!", 12, 0, 1);
+        Assert.Equal(0, lines.First().Spans.First().BoundingBox.Left);
+        Assert.Equal(100 - 12, lines.First().Spans.First().BoundingBox.Bottom);
+        Assert.Equal(100, lines.First().Spans.First().BoundingBox.Top);
+        Assert.Equal(expected, lines.First().Spans.First().BoundingBox.Width, 2);
+
+        // Again, but this time the space is on the second span.
+        lines = engine.FlowText([new Span("Hello,", font, 12), new Span(" world!", font, 12)], new PdfRectangle(0, 0, 100, 100));
+
+        // Expect a single line with a single span, because the font is the same and the spans represent individual
+        // words.
+        Assert.Single(lines);
+        Assert.Single(lines.First().Spans);
+
+        // The text should match the input.
+        linespan = lines.First().Spans.First();
+        Assert.Equal("Hello, world!", linespan.Text);
+        Assert.Equal(font, linespan.Font);
+        Assert.Equal(12, linespan.FontSize);
+
+        // Check the width of the span(s).
+        Assert.Equal(0, lines.First().Spans.First().BoundingBox.Left);
+        Assert.Equal(100 - 12, lines.First().Spans.First().BoundingBox.Bottom);
+        Assert.Equal(100, lines.First().Spans.First().BoundingBox.Top);
+        Assert.Equal(expected, lines.First().Spans.First().BoundingBox.Width, 2);
+
+        // Again, but this time with a space on both sides
+        lines = engine.FlowText([
+            new Span("Does", font, 12),
+            new Span(" this ", font, 12),
+            new Span("work?", font, 12)],
+            new PdfRectangle(0, 0, 200, 100));
+
+        // Expect a single line with a single span, because the font is the same and the spans represent individual
+        // words.
+        Assert.Single(lines);
+        Assert.Single(lines.First().Spans);
+
+        // The text should match the input.
+        linespan = lines.First().Spans.First();
+        Assert.Equal("Does this work?", linespan.Text);
+        Assert.Equal(font, linespan.Font);
+        Assert.Equal(12, linespan.FontSize);
+
+        // Check the width of the span(s).
+        expected = font.MeasureString("Does this work?", 12, 0, 1);
+        Assert.Equal(0, lines.First().Spans.First().BoundingBox.Left);
+        Assert.Equal(100 - 12, lines.First().Spans.First().BoundingBox.Bottom);
+        Assert.Equal(100, lines.First().Spans.First().BoundingBox.Top);
+        Assert.Equal(expected, lines.First().Spans.First().BoundingBox.Width, 2);
+    }
+
+    /// <summary>
+    /// The TextFlowEngine should wrap multiple spans across multiple lines.
+    /// </summary>
+    [Fact]
+    public void ShouldWrapMultipleLines()
+    {
+        using var output = new MemoryStream();
+        var writer = new PdfDocumentWriter(output);
+        var font = writer.CreateStandardFont("Helvetica");
+
+        var engine = new TextFlowEngine(TextAlignmentOptions.Default);
+        var lines = engine.FlowText(new List<Span>([
+            new Span("The quick ", font, 12),
+            new Span("brown fox ", font, 12),
+            new Span("jumps over the lazy dog.", font, 12)]),
+            new PdfRectangle(0, 0, 100, 100));
+
+        Assert.Equal(3, lines.Count());
+
+        var first = lines.First();
+        Assert.Single(first.Spans);
+        Assert.Equal("The quick brown", first.Spans.First().Text);
+        Assert.Equal(font, first.Spans.First().Font);
+        Assert.Equal(12, first.Spans.First().FontSize);
+        var width = font.MeasureString("The quick brown", 12, 0, 1);
+        Assert.Equal(0, first.Spans.First().BoundingBox.Left);
+        Assert.Equal(100 - 12, first.Spans.First().BoundingBox.Bottom);
+        Assert.Equal(100, first.Spans.First().BoundingBox.Top);
+        Assert.Equal(width, first.Spans.First().BoundingBox.Width, 2);
+
+        var second = lines.Skip(1).First();
+        Assert.Single(second.Spans);
+        Assert.Equal("fox jumps over the", second.Spans.First().Text);
+        Assert.Equal(font, second.Spans.First().Font);
+        Assert.Equal(12, second.Spans.First().FontSize);
+        width = font.MeasureString("fox jumps over the", 12, 0, 1);
+        Assert.Equal(0, second.Spans.First().BoundingBox.Left);
+        Assert.Equal(100 - 24, second.Spans.First().BoundingBox.Bottom);
+        Assert.Equal(100 - 12, second.Spans.First().BoundingBox.Top);
+        Assert.Equal(Math.Round(width, 2), Math.Round(second.Spans.First().BoundingBox.Width, 2));
+
+        var third = lines.Last();
+        Assert.Single(third.Spans);
+        Assert.Equal("lazy dog.", third.Spans.First().Text);
+        Assert.Equal(font, third.Spans.First().Font);
+        Assert.Equal(12, third.Spans.First().FontSize);
+        width = font.MeasureString("lazy dog.", 12, 0, 1);
+        Assert.Equal(0, third.Spans.First().BoundingBox.Left);
+        Assert.Equal(100 - 36, third.Spans.First().BoundingBox.Bottom);
+        Assert.Equal(100 - 24, third.Spans.First().BoundingBox.Top);
+        Assert.Equal(Math.Round(width, 2), Math.Round(third.Spans.First().BoundingBox.Width, 2));
+    }
+
+    /// <summary>
+    /// The TextFlowEngine should combine word chunks of two adjacent spans into a single word.
+    /// </summary>
+    [Fact]
+    public void ShouldCombineSpanWords()
+    {
+        using var output = new MemoryStream();
+        var writer = new PdfDocumentWriter(output);
+        var font = writer.CreateStandardFont("Helvetica");
+
+        // Flow text with multiple spans that combine a word.
+        var engine = new TextFlowEngine(TextAlignmentOptions.Default);
+        var lines = engine.FlowText([
+            new Span("This is in", font, 12),
+            new Span("cre", font, 12),
+            new Span("dible, really", font, 12)],
+            new PdfRectangle(0, 0, 300, 100));
+
+        // Expect a single line with multiple linespans because we used multiple spans to combine a word.
+        // words.
+        Assert.Single(lines);
+        Assert.Equal(5, lines.First().Spans.Length);
+
+        // The text should match the input.
+        var firstSpan = lines.First().Spans[0];
+        Assert.Equal("This is", firstSpan.Text);
+        Assert.Equal(font, firstSpan.Font);
+        Assert.Equal(12, firstSpan.FontSize);
+
+        var secondSpan = lines.First().Spans[1];
+        Assert.Equal(" in", secondSpan.Text);
+        Assert.Equal(font, secondSpan.Font);
+        Assert.Equal(12, secondSpan.FontSize);
+
+        var thirdSpan = lines.First().Spans[2];
+        Assert.Equal("cre", thirdSpan.Text);
+        Assert.Equal(font, thirdSpan.Font);
+        Assert.Equal(12, thirdSpan.FontSize);
+
+        var fourthSpan = lines.First().Spans[3];
+        Assert.Equal("dible,", fourthSpan.Text);
+        Assert.Equal(font, fourthSpan.Font);
+        Assert.Equal(12, fourthSpan.FontSize);
+
+        var fifthSpan = lines.First().Spans[4];
+        Assert.Equal(" really", fifthSpan.Text);
+        Assert.Equal(font, fifthSpan.Font);
+        Assert.Equal(12, fifthSpan.FontSize);
+
+        // Check the width of the span(s).
+
+        Assert.Equal(0, firstSpan.BoundingBox.Left);
+        Assert.Equal(100 - 12, firstSpan.BoundingBox.Bottom);
+        Assert.Equal(100, firstSpan.BoundingBox.Top);
+
+        var thisIsWidth = font.MeasureString("This is", 12, 0, 1);
+        var inWidth = font.MeasureString(" in", 12, 0, 1);
+        var creWidth = font.MeasureString("cre", 12, 0, 1);
+        var dibleWidth = font.MeasureString("dible,", 12, 0, 1);
+        var reallyWidth = font.MeasureString(" really", 12, 0, 1);
+
+        Assert.Equal(thisIsWidth, firstSpan.BoundingBox.Width, 2);
+        Assert.Equal(inWidth, secondSpan.BoundingBox.Width, 2);
+        Assert.Equal(creWidth, thirdSpan.BoundingBox.Width, 2);
+        Assert.Equal(dibleWidth, fourthSpan.BoundingBox.Width, 2);
+        Assert.Equal(reallyWidth, fifthSpan.BoundingBox.Width, 2);
+
     }
     #endregion
 }

@@ -948,14 +948,64 @@ public class PdfsProcessorTests
     }
 
     /// <summary>
-    /// The processor should place text on a single line, when given a set of text spans
-    /// with various styles.
+    /// The processor should support the TFL operation and place text on a single line,
+    ///  when given a set of text spans with various styles and no fixed width.
     /// </summary>
-    //[Fact]
-    //public async Task ShouldFlowSingleLineTextSpans()
-    //  {
-    //
-    //}
+    [Fact]
+    public async Task ShouldFlowSingleLineTextSpans()
+    {
+        using var stream = S(
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 1 0 0 1 100 100 Tm [(Hello, world!)] TFL ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a single call to draw text as the content fits on a line.
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Array && v.GetArray()[0].Equals(new PdfsValue("Hello, world!"))));
+        await writer.Received(1).WriteRawContent(" TJ\r\n");
+        await writer.Received(1).WriteRawContent("BT\r\n");
+    }
+
+    /// <summary>
+    /// The processor should support the Tfl operation, which is used to flow text along a width.
+    /// It should flow a piece of text over multiple text lines.
+    /// </summary>
+    [Fact]
+    public async Task ShouldFlowTextSpansOverLines()
+    {
+        using var stream = S(
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 1 Ta 1 0 0 1 100 100 Tm 300 /Auto Tb [(The quick ) (brown fox ) (jumps over ) (the lazy ) (dog.)] TFL ET");
+
+        var manrope = TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf");
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(manrope);
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to offset the text horizontally
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        var width = manrope.MeasureString("The quick brown fox jumps", 24, 0, 1f);
+        var descent = manrope.GetDescent(24f);
+        /*
+        await writer.Received(1).WriteRawContent($"{(300 - width) / 2:F2} {-24 - descent} Td\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("The quick brown fox jumps"));
+
+        var width2 = manrope.MeasureString("over the lazy dog.", 24, 0, 1f);
+        await writer.Received(1).WriteRawContent($"{(width - width2) / 2:F3} -24 TD\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("over the lazy dog."));
+        await writer.Received(2).WriteRawContent(" Tj\r\n");
+        await writer.Received(1).WriteRawContent("ET\r\n");
+        */
+    }
     #endregion
 
     #region Measuring text lines
@@ -975,6 +1025,24 @@ public class PdfsProcessorTests
         await PdfsProcessor.Process(stream, writer);
 
     }
+
+    /*
+    /// <summary>
+    /// The processor should output a PDF with some lines on it.
+    /// </summary>
+    [Fact]
+    public async Task ShouldWriteTFLOperation()
+    {
+        using var stream = S(
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 1 Ta 1 0 0 1 100 100 Tm 300 /Auto Tb [(The quick ) (brown fox ) (jumps over ) (the lazy ) (dog.)] TFL ET");
+
+        var writer = new PdfDocumentWriter("TFL.pdf");
+
+        await PdfsProcessor.Process(stream, writer);
+
+    }
+    */
     #endregion
 
 
