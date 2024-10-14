@@ -994,7 +994,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await _writer.WriteRawContent($"0 {Math.Round(offset, 3)} Td\r\n");
             }
 
-            await _writer.WriteValue(op.Operands[0]);
+            await _writer.WriteValue(ResolveOperand(op.Operands[0]));
             await _writer.WriteRawContent(" TJ\r\n");
             return;
 
