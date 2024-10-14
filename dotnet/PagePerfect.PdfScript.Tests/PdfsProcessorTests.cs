@@ -995,7 +995,7 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
         var width = manrope.MeasureString("The quick brown fox jumps", 24, 0, 1f);
         var descent = manrope.GetDescent(24f);
-        /*
+
         await writer.Received(1).WriteRawContent($"{(300 - width) / 2:F2} {-24 - descent} Td\r\n");
         await writer.Received(1).WriteValue(new PdfsValue("The quick brown fox jumps"));
 
@@ -1004,8 +1004,73 @@ public class PdfsProcessorTests
         await writer.Received(1).WriteValue(new PdfsValue("over the lazy dog."));
         await writer.Received(2).WriteRawContent(" Tj\r\n");
         await writer.Received(1).WriteRawContent("ET\r\n");
-        */
     }
+
+    /// <summary>
+    /// The processor should allow variables to be used as text span content, in the
+    /// case of a single line of text where the output is a TJ instruction.
+    /// </summary>
+    [Fact]
+    public async Task ShouldAllowVariablesInSingleLineTextSpans()
+    {
+        using var stream = S(
+            "# var $hello /String (Hello, World!)" +
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 1 0 0 1 100 100 Tm [$hello] TFL ET");
+
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf"));
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect a single call to draw text as the content fits on a line.
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        await writer.Received(1).WriteValue(Arg.Is<PdfsValue>(v => v.Kind == PdfsValueKind.Array && v.GetArray()[0].Equals(new PdfsValue("Hello, World!"))));
+        await writer.Received(1).WriteRawContent(" TJ\r\n");
+        await writer.Received(1).WriteRawContent("BT\r\n");
+    }
+
+    /// <summary>
+    /// The processor should allow variables to be used as text span content, in the
+    /// case of multiple lines of text where the output is a series of TJ/tj instructions.
+    /// </summary>
+    [Fact]
+    public async Task ShouldAllowVariablesInMultiLineTextSpans()
+    {
+        using var stream = S(
+            "# var $theQuick /String (The quick )" +
+            "# var $brownFox /String (brown fox )" +
+            "# var $jumpsOver /String (jumps over )" +
+            "# var $theLazy /String (the lazy )" +
+            "# var $dog /String (dog.)" +
+            "# resource /ManropeRegular /Font (Data/Manrope-Regular.ttf)\r\n" +
+            "BT /ManropeRegular 24 Tf 1 Ta 1 0 0 1 100 100 Tm 300 /Auto Tb [$theQuick $brownFox $jumpsOver $theLazy $dog] TFL ET");
+
+        var manrope = TrueTypeFont.Parse(new PdfObjectReference(1, 0), "F1", "Data/Manrope-Regular.ttf");
+        var writer = Substitute.For<IPdfDocumentWriter>();
+        writer.CreateTrueTypeFont(Arg.Any<string>()).Returns(manrope);
+        await PdfsProcessor.Process(stream, writer);
+
+        // We expect calls to offset the text horizontally
+        writer.Received(1).CreateTrueTypeFont(Arg.Any<string>());
+        writer.Received(1).AddResourceToPage(Arg.Any<PdfResourceReference>());
+        await writer.Received(1).WriteRawContent("BT\r\n");
+        await writer.Received(1).WriteRawContent("/F1 24 Tf\r\n");
+        var width = manrope.MeasureString("The quick brown fox jumps", 24, 0, 1f);
+        var descent = manrope.GetDescent(24f);
+
+        await writer.Received(1).WriteRawContent($"{(300 - width) / 2:F2} {-24 - descent} Td\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("The quick brown fox jumps"));
+
+        var width2 = manrope.MeasureString("over the lazy dog.", 24, 0, 1f);
+        await writer.Received(1).WriteRawContent($"{(width - width2) / 2:F3} -24 TD\r\n");
+        await writer.Received(1).WriteValue(new PdfsValue("over the lazy dog."));
+        await writer.Received(2).WriteRawContent(" Tj\r\n");
+        await writer.Received(1).WriteRawContent("ET\r\n");
+    }
+
     #endregion
 
     #region Measuring text lines
