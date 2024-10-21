@@ -1,0 +1,142 @@
+{
+    "displayName": "PDFScript",
+    "name": "pdfscript",
+    "scopeName": "source.pdfs",
+    "patterns": [
+        {
+            "include": "#prolog"
+        },
+        {
+            "include": "#keyword.prolog.instruction"
+        },
+        {
+            "include": "#keyword.name"
+        },
+        {
+            "include": "#variable"
+        },
+        {
+            "include": "#str"
+        },
+        {
+            "include": "#hexstr"
+        },
+        {
+            "include": "#boolean-literal"
+        },
+        {
+            "include": "#array"
+        },
+        {
+            "include": "#dict"
+        }
+    ],
+    "repository": {
+        "prolog": {
+            "match": "#",
+            "name": "entity.name.function.pdfs"
+        },
+        "keyword.prolog.instruction": {
+            "match": "(resource|var)",
+            "name": "keyword.other.directive.pdfs"
+        },
+        "keyword.name": {
+            "match": "/[a-zA-Z]+",
+            "name": "literal.name.pdfs"
+        },
+        "variable": {
+            "match": "\\$[a-zA-Z]+",
+            "name": "variable.language.pdfs"
+        },
+        "str": {
+            "match": "\\([a-zA-Z0-9: ]+\\)",
+            "name": "string.pdfs"
+        },
+        "hexstr": {
+            "match": "<[a-fA-F0-9]+>",
+            "name": "string.pdfs"
+        },
+        "boolean-literal": {
+            "patterns": [
+                {
+                    "match": "(?<!\\.)\\btrue\\b",
+                    "name": "constant.language.boolean.true.cs"
+                },
+                {
+                    "match": "(?<!\\.)\\bfalse\\b",
+                    "name": "constant.language.boolean.false.cs"
+                }
+            ]
+        },
+        "array": {
+            "begin": "\\[",
+            "end": "\\]",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.squarebracket.open.pdfs"
+                }
+            },
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.squarebracket.close.pdfs"
+                }
+            },
+            "name": "expression-group",
+            "patterns": [
+                {
+                    "include": "#keyword.name"
+                },
+                {
+                    "include": "#variable"
+                },
+                {
+                    "include": "#str"
+                },
+                {
+                    "include": "#boolean-literal"
+                },
+                {
+                    "include": "#array"
+                },
+                {
+                    "include": "#dict"
+                }
+            ]
+        },
+        "dict": {
+            "begin": "<<",
+            "end": ">>",
+            "beginCaptures": {
+                "0": {
+                    "name": "punctuation.anglebracket.open.pdfs"
+                }
+            },
+            "endCaptures": {
+                "0": {
+                    "name": "punctuation.anglebracket.close.pdfs"
+                }
+            },
+            "name": "expression-group",
+            "patterns": [
+                {
+                    "include": "#keyword.name"
+                },
+                {
+                    "include": "#variable"
+                },
+                {
+                    "include": "#str"
+                },
+                {
+                    "include": "#boolean-literal"
+                },
+                {
+                    "include": "#array"
+                },
+                {
+                    "include": "#dict"
+                }
+            ]
+        }
+    }
+}

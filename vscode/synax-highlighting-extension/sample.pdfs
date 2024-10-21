@@ -1,0 +1,59 @@
+# var $today /String (2024-09-27)
+# var $fye /String (2023)
+# var $companyName /String (Acme Corp)
+# resource /Logo /Image (Meta/brand-logo.jpg)
+
+BT
+72 770 Td
+/Helvetica 11.5 Tf
+(Date: ) Tj
+$today Tj
+0 -30 Td
+(To: ) Tj
+$companyName Tj
+0 -30 Td
+/HelveticaBold 11.5 Tf
+451 /Auto Tb
+6 TL
+[(RE: Acknowledgment of Receipt of Annual Financial Return for Year Ending ) $fye] TFL
+0 -24 Td
+/Helvetica 11.5 Tf
+[(We acknowledge receipt of the Annual Financial Return (AFR) for the financial year ending ) $fye ( for ) $companyName (.)] TFL
+0 -18 Td
+(We hereby confirm that the AFR has been successfully received and filed at the Registered Office of the Company. ) Tfl
+0 -30 Td
+(Thank you for your prompt attention to this matter. ) Tj
+0 -30 Td
+(Sincerely, ) Tj
+0 -30 Td
+(SHRM Trustees (BVI) Limited) Tj
+ET
+
+q
+60 0 0 60 72 76 cm
+/Logo Do
+Q
+
+1 0 0 1 144 122 cm
+BT
+/Helvetica 10 Tf
+14 TL
+(SHRM TRUSTEES (BVI) LIMITED) Tj
+T*
+(Trinity Chambers, Ora et Labora Building, Wickhams Cay II) Tj
+T*
+(PO Box 4301, Road Town, Tortola, VG1110, British Virgin Islands) Tj
+T*
+0.29 0.76 0.22 rg
+(T: ) Tj
+0 0 0 rg
+(+1 284 494 8445 ) Tj
+0.29 0.76 0.22 rg
+(| E: ) Tj
+0 0 0 rg
+(afr@shrmbvi.com ) Tj
+0.29 0.76 0.22 rg
+(| W: ) Tj
+0 0 0 rg
+(https://shrmgroup.com) Tj
+ET
