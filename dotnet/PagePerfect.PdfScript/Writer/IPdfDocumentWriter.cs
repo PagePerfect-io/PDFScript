@@ -131,8 +131,11 @@ public interface IPdfDocumentWriter
     /// Creates a new TrueType Font resource and returns a reference that identifies the font.
     /// </summary>
     /// <param name="path">The path to the font's program.</param>
+    /// <param name="tag">Optional tag that can be used to identify the font.</param>
+    /// <param name="useGlpyhEncoding">If true, the font will use a CIDFont and direct glyph codes.
+    /// If false, it will use the standard WinAnsi encoding and only work on characters in the 8-bit WinAnsi table.</param>
     /// <returns>Reference to the newly created font.</returns>
-    public Font CreateTrueTypeFont(string path, object? tag = null);
+    public Font CreateTrueTypeFont(string path, object? tag = null, bool useGlpyhEncoding = false);
 
     /// <summary>
     /// Flushes the PDF stream.

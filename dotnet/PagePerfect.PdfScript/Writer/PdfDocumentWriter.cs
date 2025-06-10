@@ -26,6 +26,7 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     private PageState? _currentPage;
     //private readonly Dictionary<PdfObjectReference, Func<CustomResource, PdfDocumentWriter, Task>> _customResourceCallbacks;
     private readonly List<PdfResourceReference> _documentResources;
+    private readonly Dictionary<string, bool> _useCIDFont = [];
     #endregion
 
 
@@ -306,13 +307,18 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// Creates a new TrueType Font resource and returns a reference that identifies the font.
     /// </summary>
     /// <param name="path">The path to the font's program.</param>
+    /// <param name="tag">Optional tag that can be used to identify the font.</param>
+    /// <param name="useGlpyhEncoding">If true, the font will use a CIDFont and direct glyph codes.
+    /// If false, it will use the standard WinAnsi encoding and only work on characters in the 8-bit WinAnsi table.</param>
     /// <returns>Reference to the newly created font.</returns>
-    public Font CreateTrueTypeFont(string path, object? tag = null)
+    public Font CreateTrueTypeFont(string path, object? tag = null, bool useGlpyhEncoding = false)
     {
         var fontRef = CreateObjectReference();
         var font = TrueTypeFont.Parse(fontRef, CreateResourceName("F"), path, tag);
 
         _documentResources.Add(font);
+
+        if (useGlpyhEncoding) { _useCIDFont[font.Identifier] = true; }
 
         return font;
     }
@@ -787,6 +793,112 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     }
 
     /// <summary>
+    /// Writes a CID font for the specified TrueType font.
+    /// This method will create a Type0 font and  CID font object, for the specified TrueType font.
+    /// </summary>
+    /// <param name="font">The TrueType font to write a CID font for</param>
+    /// <param name="descriptorRef">The font descriptor reference for the font</param>
+    /// <returns>The result of the operation.</returns>
+    private async Task WriteCIDFont(TrueTypeFont font, PdfObjectReference descriptorRef)
+    {
+        var cidRef = CreateObjectReference();
+        var toUnicodeRef = CreateObjectReference();
+
+        // We now open the font descriptor object.
+        await OpenObject(font.ObjectReference, "Font");
+        await _writer.WriteLineAsync($"\t/Subtype\t/Type0");
+        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
+        await _writer.WriteLineAsync($"\t/Encoding\t/Identity-H");
+        await _writer.WriteLineAsync($"\t/DescendantFonts\t[{cidRef.ToString(PdfObjectNotation.Reference)}]");
+        await _writer.WriteLineAsync($"\t/ToUnicode\t{toUnicodeRef.ToString(PdfObjectNotation.Reference)}");
+        await CloseObject();
+
+
+        // Generate a sequence of widths for the CID font, of the form:
+        // [ start [ width1 width2 ... ] start [ width1 width2 ... ] ... ]
+        // where 'start' is a glyph index, and 'width1', 'width2', etc. are the widths of the glyphs
+        // in the sequence. This is used to generate the /W array in the CID font.
+        /*
+        const unitsPerEm = font.info.unitsPerEm || 1000
+        const usedGlyphs = font.usedGlyphs.sort((a, b) => a - b)
+        const widths = []
+        let prev = null
+        let sequence = null
+        for(let i = 0; i < usedGlyphs.length; i++) {
+            const g = usedGlyphs[i]
+            const metric = font.metrics[g]
+            if(prev && g===prev+1) {
+                sequence.push(Math.round(metric.advanceWidth * 1000 / unitsPerEm))                
+            } else {
+                if(sequence) {
+                    widths.push(sequence)
+                }
+                widths.push(g)
+                sequence = [Math.round(font.metrics[g].advanceWidth * 1000 / unitsPerEm)]
+            }
+            prev = g
+        }
+        if(sequence) { widths.push(sequence) }
+
+        this.#writeObject(cidRef, {
+            "/Type": "/Font",
+            "/Subtype": "/CIDFontType2",
+            "/BaseFont": `/${font.typename.replace(/ /g, '-')}`,
+            "/CIDSystemInfo": {
+                "/Registry": "(Adobe)",
+                "/Ordering": "(Identity-H)",
+                "/Supplement": 0
+            },
+            "/FontDescriptor": descriptorRef.toString(),
+            "/W": widths
+        })
+
+        const cmap = new Uint8Array(64*1024)
+        const encoder = new TextEncoder()
+        let cmapWritten = 0
+        function writeCmap(chunk) {
+            const result = encoder.encodeInto(chunk, cmap.subarray(cmapWritten))
+            if (0 === result.written) throw "Buffer overflow"
+            cmapWritten += result.written
+        }
+
+        writeCmap("/CIDInit /ProcSet findresource begin\n")
+        writeCmap("12 dict begin\n")
+        writeCmap("begincmap\n")
+        writeCmap(`\t/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity-H) /Supplement 0 >>\n`)
+        writeCmap("\t/CMapName /Identity-H\n")
+        writeCmap("\t/CMapType 2\n")
+        writeCmap("\t1 begincodespacerange\n")
+        writeCmap("\t\t<0000> <FFFF>\n")
+        writeCmap("\tendcodespacerange\n")
+        writeCmap("\t2 beginbfchar\n")
+        const map = { }
+        for(let c of Object.keys(font.cmap)) { map[font.cmap[c]] = Number(c) }
+        for(let g of usedGlyphs) {
+            const ch = map[g]
+            if(ch) {
+                writeCmap(`\t\t<${g.toString(16).padStart(4, '0')}> <${ch.toString(16).padStart(4, '0')}> \n`)
+            }
+        }
+        writeCmap("\tendbfchar\n")
+        writeCmap("\tendcmap\n")
+        writeCmap("CMapName currentdict /CMap defineresource pop\n")
+        writeCmap("end\n")
+        writeCmap("end\n")
+            
+        this.openObject(null, toUnicodeRef)
+        this.#writeLine(`\t/Length\t${cmapWritten}`)
+        this.#writeLine(">>")
+        this.#writeLine("stream")
+
+        this.writeBuffer(cmap, 0, cmapWritten)
+
+        this.#writeLine("\r\nendstream")
+        this.#writeLine("endobj")
+        */
+    }
+
+    /// <summary>
     /// Writes the cross reference table. This method asks the cross
     /// reference table to write itself to the stream, and returns
     /// the position of the cross reference table.
@@ -1189,42 +1301,50 @@ public class PdfDocumentWriter : IPdfDocumentWriter
     /// <param name="font">The font to write.</param>
     private async Task WriteTrueTypeFont(TrueTypeFont font)
     {
-        await OpenObject(font.ObjectReference, "Font");
-        await _writer.WriteLineAsync("\t/Subtype\t/TrueType");
-        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
-        await _writer.WriteLineAsync($"\t/Name\t/{font.Identifier}");
-
-        // If this font is not a symbolic font then output the Windows encoding.
-        if (4 != font.Info.Flags)
-            await _writer.WriteLineAsync("\t/Encoding\t/WinAnsiEncoding");
-
-        // Create a new font descriptor reference and add that to the header.
         PdfObjectReference descriptorRef = CreateObjectReference();
-        await _writer.WriteLineAsync($"\t/FontDescriptor\t{descriptorRef.ToString(PdfObjectNotation.Reference)}");
 
-        // Write the widths of the glyphs that correspond to the characters in the range 32-255.
-        var firstChar = 32;
-        var lastChar = 255;
-        await _writer.WriteLineAsync($"\t/FirstChar\t{firstChar}");
-        await _writer.WriteLineAsync($"\t/LastChar\t{lastChar}");
-        await _writer.WriteAsync("\t/Widths\t[");
-        var charsPrinted = 0;
-
-        // Fill a byte array with the numbers, and convert it to unicode numbers.
-        // We then look up the character widths for them.
-        var bytes = new byte[lastChar - firstChar + 1];
-        for (var c = firstChar; c <= lastChar; c++) bytes[c - firstChar] = (byte)c;
-        var characters = System.Text.ASCIIEncoding.Default.GetChars(bytes);
-
-        foreach (var ch in characters)
+        if (_useCIDFont.TryGetValue(font.Identifier, out var useCIDFont) && useCIDFont)
         {
-            if (0 == charsPrinted % 16) await _writer.WriteAsync("\r\n\t\t");
-            await _writer.WriteAsync($"{font.Info.GetCharacterWidth(ch) * 1000 / font.Info.UnitsPerEm} ");
-
-            charsPrinted++;
+            await WriteCIDFont(font, descriptorRef);
         }
-        await _writer.WriteAsync(" ]\r\n");
-        await CloseObject();
+        else
+        {
+            await OpenObject(font.ObjectReference, "Font");
+            await _writer.WriteLineAsync("\t/Subtype\t/TrueType");
+            await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
+            await _writer.WriteLineAsync($"\t/Name\t/{font.Identifier}");
+
+            // If this font is not a symbolic font then output the Windows encoding.
+            if (4 != font.Info.Flags)
+                await _writer.WriteLineAsync("\t/Encoding\t/WinAnsiEncoding");
+
+            // Create a new font descriptor reference and add that to the header.
+            await _writer.WriteLineAsync($"\t/FontDescriptor\t{descriptorRef.ToString(PdfObjectNotation.Reference)}");
+
+            // Write the widths of the glyphs that correspond to the characters in the range 32-255.
+            var firstChar = 32;
+            var lastChar = 255;
+            await _writer.WriteLineAsync($"\t/FirstChar\t{firstChar}");
+            await _writer.WriteLineAsync($"\t/LastChar\t{lastChar}");
+            await _writer.WriteAsync("\t/Widths\t[");
+            var charsPrinted = 0;
+
+            // Fill a byte array with the numbers, and convert it to unicode numbers.
+            // We then look up the character widths for them.
+            var bytes = new byte[lastChar - firstChar + 1];
+            for (var c = firstChar; c <= lastChar; c++) bytes[c - firstChar] = (byte)c;
+            var characters = System.Text.ASCIIEncoding.Default.GetChars(bytes);
+
+            foreach (var ch in characters)
+            {
+                if (0 == charsPrinted % 16) await _writer.WriteAsync("\r\n\t\t");
+                await _writer.WriteAsync($"{font.Info.GetCharacterWidth(ch) * 1000 / font.Info.UnitsPerEm} ");
+
+                charsPrinted++;
+            }
+            await _writer.WriteAsync(" ]\r\n");
+            await CloseObject();
+        }
 
         // We now open the font descriptor object.
         await OpenObject(descriptorRef, "FontDescriptor");
