@@ -181,7 +181,7 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
         var localPath = await DownloadResourceToTempFile(location);
 
         // Add the font to the document.
-        var font = _writer.CreateTrueTypeFont(localPath);
+        var font = _writer.CreateTrueTypeFont(localPath, null, true);
         _localResources[location] = font;
 
         return font;
@@ -729,6 +729,58 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
     }
 
     /// <summary>
+    /// Writes a text placement operation to the PDF writer, replacing any string
+    /// operands with glyph arrays. This is used for operations like Tj and TJ,
+    /// in the case of a TrueType font that the PDF writer will wrap in a Type 0
+    /// font to support glyph-based text placement, ultimately to support unicode text.
+    /// </summary>
+    /// <param name="op">The operation.</param>
+    private async Task WriteGlyphBasedTextPlacementInstruction(GraphicsOperation op)
+    {
+        // We need to replace any string operands with glyph arrays.
+        // Strings embedded in arrays also need to be replaced.
+        foreach (var v in op.Operands)
+        {
+            var resolved = ResolveOperand(v);
+            await WriteOperandOrHexString(resolved);
+            await _writer.WriteRawContent(" ");
+        }
+
+        await _writer.WriteRawContent($"{op.GetOperatorName()}\r\n");
+    }
+
+    /// <summary>
+    /// Writes an operand to the output, or a hex string if the operand
+    /// is a string. The hex string will be encoded from the operand's string value
+    /// using the current font's encoding.
+    /// </summary>
+    /// <param name="value">The operand value.</param>
+    private async Task WriteOperandOrHexString(PdfsValue value)
+    {
+        switch (value.Kind)
+        {
+            case PdfsValueKind.String:
+                await _writer.WriteHexString(((TrueTypeFont)_graphicsState.Font!).Encode(value.GetString()));
+                break;
+
+            case PdfsValueKind.Array:
+                // Replace any strings in the array with glyph arrays.
+                await _writer.WriteRawContent("[");
+                foreach (var i in value.GetArray())
+                {
+                    await WriteOperandOrHexString(i);
+                    await _writer.WriteRawContent(" ");
+                }
+                await _writer.WriteRawContent("]");
+                break;
+
+            default:
+                await _writer.WriteValue(value);
+                break;
+        }
+    }
+
+    /// <summary>
     /// Writes a graphics operation to the output stream. This method detects
     /// special cases, such as Do and Tj, and dispatches appropriately, before
     /// defaulting to a standard output of the operands and operator.
@@ -780,6 +832,17 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 // Process character spacing.
                 _graphicsState.CharacterSpacing = ResolveOperand(op.Operands[0]).GetNumber();
                 await WriteStandardGraphicsOperation(op);
+                break;
+
+            case Operator.Tj:
+            case Operator.TJ:
+            case Operator.Quot:
+            case Operator.Apos:
+                if (_graphicsState.Font is TrueTypeFont)
+                {
+                    await WriteGlyphBasedTextPlacementInstruction(op);
+                }
+                else await WriteStandardGraphicsOperation(op);
                 break;
 
             case Operator.Tw:
@@ -994,7 +1057,11 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await _writer.WriteRawContent($"0 {Math.Round(offset, 3)} Td\r\n");
             }
 
-            await _writer.WriteValue(ResolveOperand(op.Operands[0]));
+            var o = ResolveOperand(op.Operands[0]);
+            if (_graphicsState.Font is TrueTypeFont)
+                await WriteOperandOrHexString(o);
+            else
+                await _writer.WriteValue(o);
             await _writer.WriteRawContent(" TJ\r\n");
             return;
 
@@ -1079,7 +1146,10 @@ public class PdfsProcessor(Stream source, IPdfDocumentWriter writer)
                 await _writer.WriteRawContent($"0 {Math.Round(offset, 3)} Td\r\n");
             }
 
-            await _writer.WriteValue(text);
+            if (_graphicsState.Font is TrueTypeFont)
+                await WriteOperandOrHexString(text);
+            else
+                await _writer.WriteValue(text);
             await _writer.WriteRawContent(" Tj\r\n");
             return;
 
