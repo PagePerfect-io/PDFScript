@@ -1,5 +1,6 @@
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Writer;
+using PagePerfect.PdfScript.Writer.Resources.Fonts;
 
 namespace PagePerfect.PdfScript.Processor.Text;
 
@@ -74,12 +75,18 @@ public static class TextUtilities
                 {
                     var gap = (int)((span.BoundingBox.Left - previousRight) * 1000 / span.FontSize);
                     await writer.WriteRawContent($"[-{gap} ");
-                    await writer.WriteValue(new PdfsValue(span.Text));
+                    if (span.Font is TrueTypeFont)
+                        await writer.WriteHexString(((TrueTypeFont)span.Font!).Encode(span.Text));
+                    else
+                        await writer.WriteValue(new PdfsValue(span.Text));
                     await writer.WriteRawContent($"] TJ\r\n");
                 }
                 else
                 {
-                    await writer.WriteValue(new PdfsValue(span.Text));
+                    if (span.Font is TrueTypeFont)
+                        await writer.WriteHexString(((TrueTypeFont)span.Font!).Encode(span.Text));
+                    else
+                        await writer.WriteValue(new PdfsValue(span.Text));
                     await writer.WriteRawContent($" Tj\r\n");
                 }
 

@@ -131,8 +131,11 @@ public interface IPdfDocumentWriter
     /// Creates a new TrueType Font resource and returns a reference that identifies the font.
     /// </summary>
     /// <param name="path">The path to the font's program.</param>
+    /// <param name="tag">Optional tag that can be used to identify the font.</param>
+    /// <param name="useGlpyhEncoding">If true, the font will use a CIDFont and direct glyph codes.
+    /// If false, it will use the standard WinAnsi encoding and only work on characters in the 8-bit WinAnsi table.</param>
     /// <returns>Reference to the newly created font.</returns>
-    public Font CreateTrueTypeFont(string path, object? tag = null);
+    public Font CreateTrueTypeFont(string path, object? tag = null, bool useGlpyhEncoding = false);
 
     /// <summary>
     /// Flushes the PDF stream.
@@ -198,6 +201,22 @@ public interface IPdfDocumentWriter
     /// <param name="start">The index to start writing from.</param>
     /// <param name="length">The number of bytes to write.</param>
     public Task WriteBuffer(byte[] buffer, int start, int length);
+
+    /// <summary>
+    /// Writes the content of the specified buffer to the current contents stream as a hex string.
+    /// </summary>
+    /// <param name="buffer">The buffer.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public Task WriteHexString(byte[] buffer);
+
+    /// <summary>
+    /// Writes the content of the specified buffer to the current contents stream as a hex string.
+    /// </summary>
+    /// <param name="buffer">The buffer.</param>
+    /// <param name="start">The index to start writing from.</param>
+    /// <param name="length">The number of bytes to write.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public Task WriteHexString(byte[] buffer, int start, int length);
 
     /// <summary>
     /// Outputs the specified string directly to the current contents stream. No checking is done on this

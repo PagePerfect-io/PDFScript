@@ -1,4 +1,5 @@
 using PagePerfect.PdfScript.Writer;
+using PagePerfect.PdfScript.Writer.Resources.Fonts;
 
 namespace PagePerfect.PdfScript.Tests;
 
@@ -453,5 +454,41 @@ public class PdfDocumentWriterTests
     }
     #endregion
 
+    #region Unicode encoding tests
+    /// <summary>
+    /// The PdfDocumentWriter should let you write a string with unicode characters to the document,
+    /// via a TrueType font that uses glyph encoding instead of the standard WinAnsi Latin-1 encoding.
+    /// </summary>
+    [Fact]
+    public async Task ShouldWriteUnicodeTestStringToDocument()
+    {
+        using var stream = new MemoryStream();
 
+        var writer = new PdfDocumentWriter(stream);
+        await writer.Open();
+        await writer.OpenPage(595, 841, DisplayOrientation.Regular);
+        await writer.NextContentStream();
+
+        var manrope = (TrueTypeFont)writer.CreateTrueTypeFont("Data/Manrope-Regular.ttf", null, true);
+        writer.AddResourceToPage(manrope);
+
+        await writer.WriteRawContent($"BT /{manrope.Identifier} 24 Tf 100 100 Td ");
+        var buff = manrope.Encode("Hello \uE002 World!");
+        await writer.WriteHexString(buff);
+        await writer.WriteRawContent(" Tj ");
+        var buff2 = manrope.Encode("Wysołych Świąt!");
+        await writer.WriteHexString(buff2);
+        await writer.WriteRawContent(" Tj ");
+        var buff3 = manrope.Encode("BC");
+        await writer.WriteHexString(buff3);
+        await writer.WriteRawContent(" Tj ET\r\n");
+
+        await writer.CloseContentStream();
+        await writer.ClosePage();
+        await writer.Close();
+
+        stream.Seek(0, SeekOrigin.Begin);
+        File.WriteAllBytes("Data/unicode-cid-font-test.pdf", stream.ToArray());
+    }
+    #endregion
 }

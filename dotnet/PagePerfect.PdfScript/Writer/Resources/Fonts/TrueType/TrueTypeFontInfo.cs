@@ -10,7 +10,6 @@ public class TrueTypeFontInfo
     // Private fields
     // ==============
     #region Private fields
-
     private readonly Dictionary<int, GlyphInfo> _mappedGlyphs = [];
     // The character-to-glyph mapping
     private GlyphInfo? _undefinedGlyph;
@@ -92,6 +91,13 @@ public class TrueTypeFontInfo
     /// Retrieves the font's flags as demanded by the PDF specification.
     /// </summary>
     public int Flags => IsSymbolFont ? 4 : 32;
+
+    /// <summary>
+    /// The character mapping for this font.
+    /// </summary>
+    public Dictionary<uint, uint> Cmap { get; } = [];
+
+    internal GlyphInfo[] Glyphs { get; private set; } = [];
     #endregion
 
 
@@ -205,6 +211,7 @@ public class TrueTypeFontInfo
                     new TrueTypeFontParseException("No glyph data could be read from the font file");
 
                 _undefinedGlyph = glyphs[0];
+                Glyphs = glyphs;
 
                 // Add the glyphs to the mapping.
                 if (null != mappings)
@@ -212,7 +219,10 @@ public class TrueTypeFontInfo
                     foreach (var mapping in mappings)
                     {
                         if (mapping.Item2 <= glyphs.Length && mapping.Item2 > 0)
+                        {
+                            Cmap[(uint)mapping.Item1] = (uint)mapping.Item2 - 1;
                             _mappedGlyphs[mapping.Item1] = glyphs[mapping.Item2 - 1];
+                        }
                     }
                 }
 

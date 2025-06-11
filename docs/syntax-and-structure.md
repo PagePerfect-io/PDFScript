@@ -71,7 +71,7 @@ Characters such as `(`, `)`, and `\` must be escaped with a backslash: `(This is
 
 Any character can be escaped with an octal code: `(\101)` is equal to `(A)`.
 
-Currently, PDFScript supports ASCII characters and Latin-1 (ISO-8859-1) characters, so `£` and `€` are valid characters.
+PDFScript supports ASCII characters, Latin-1 (ISO-8859-1) characters, and provided that a TrueType font is used, Unicode characters.
 
 #### Names
 
