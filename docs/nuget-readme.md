@@ -127,14 +127,14 @@ PDFScript will take care of all of the necessary work to turn this into a valid 
 
 ### Latin-1 and Unicode text
 
-A `.pdfs` file is a UTF-8 text file. You can include ASCII characters and Latin-1 (ISO-8859-1) characters such as the Pound Sterling (£) symbol. These are converted to a format PDF can understand.
+A `.pdfs` file is a UTF-8 text file. You can include ASCII characters, Latin-1 (ISO-8859-1) characters such as the Pound Sterling (£) symbol, and if you use an appropriate TrueType (`.ttf`) font, you can use Unicode characters too. These are converted to a format PDF can understand.
 
-**Note:** Currently, Unicode characters are not supported in this version of PDFScript.
+**Note:** PDFScript does not replace unmapped glyphs with an 'unknown' glyph, so if you provide a text with Unicode characters that your TrueType font does not support, PdfScript will raise an error. For example, some fonts have support for ligatures like `ﬄ` (ffl), and some do not.
 
 ```
 BT
-1 0 0 1 10 800 Tm /TimesRoman 12 Tf
-(Hello, £100 !) Tj
+1 0 0 1 10 800 Tm $myFont 12 Tf
+(Welcome to my oﬃice) Tj
 ET
 ```
 
