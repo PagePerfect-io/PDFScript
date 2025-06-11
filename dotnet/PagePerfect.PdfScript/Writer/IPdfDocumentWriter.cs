@@ -203,6 +203,22 @@ public interface IPdfDocumentWriter
     public Task WriteBuffer(byte[] buffer, int start, int length);
 
     /// <summary>
+    /// Writes the content of the specified buffer to the current contents stream as a hex string.
+    /// </summary>
+    /// <param name="buffer">The buffer.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public Task WriteHexString(byte[] buffer);
+
+    /// <summary>
+    /// Writes the content of the specified buffer to the current contents stream as a hex string.
+    /// </summary>
+    /// <param name="buffer">The buffer.</param>
+    /// <param name="start">The index to start writing from.</param>
+    /// <param name="length">The number of bytes to write.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public Task WriteHexString(byte[] buffer, int start, int length);
+
+    /// <summary>
     /// Outputs the specified string directly to the current contents stream. No checking is done on this
     /// string so if it doesn't match the PDF specification, the document will not load.
     /// This method can be called regardless of the current state of the Writer.

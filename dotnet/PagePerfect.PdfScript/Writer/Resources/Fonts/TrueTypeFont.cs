@@ -11,6 +11,7 @@ public class TrueTypeFont : Font
     // ==============
     #region Private fields
     private readonly TrueTypeFontInfo _info;
+    private readonly HashSet<uint> _usedGlyphs = [];
     #endregion
 
 
@@ -49,6 +50,13 @@ public class TrueTypeFont : Font
     /// A stream that contains the font program.
     /// </summary>
     public Stream Program { get; }
+
+    /// <summary>
+    /// Retrieves the set of used glyphs in this font. This is used to determine which glyphs
+    /// are actually used in the document, so that unused glyphs can be omitted from the CID font
+    /// definition in the PDF file.
+    /// </summary>
+    public HashSet<uint> UsedGlyphs => _usedGlyphs;
     #endregion
 
 
@@ -115,6 +123,35 @@ public class TrueTypeFont : Font
     // Public methods
     // ==============
     #region Public methods
+    /// <summary>
+    /// Encodes a string into an array of 2-byte glyph codes. This will be used to write the
+    /// string to the PDF file, using the writeHexString() method. The font will be wrapped in a
+    /// CIDFont object.
+    /// </summary>
+    /// <param name="str">The string to encode into an array of 2-byte glyph codes</param>
+    /// <returns>The byte array with glyph indices.</returns>
+    public byte[] Encode(string str)
+    {
+        if (string.IsNullOrEmpty(str)) return [];
+
+        var encoded = new byte[str.Length * 2];
+        int e = 0;
+        for (var i = 0; i < str.Length; i++)
+        {
+            var ch = str[i];
+            if (!_info.Cmap.TryGetValue(ch, out var glyphIndex)) throw new InvalidOperationException(
+                $"Character code {ch} not found in character map.");
+            encoded[e++] = (byte)(glyphIndex >> 8);
+            encoded[e++] = (byte)(glyphIndex & 0xFF);
+
+            if (glyphIndex > 0 && !_usedGlyphs.Contains(glyphIndex))
+            {
+                _usedGlyphs.Add(glyphIndex);
+            }
+        }
+        return encoded;
+    }
+
     /// <summary>
     /// Parses a TrueType font from the specified file.
     /// </summary>

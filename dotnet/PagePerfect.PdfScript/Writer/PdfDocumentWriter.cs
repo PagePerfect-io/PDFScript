@@ -1,3 +1,4 @@
+using System.Collections;
 using PagePerfect.PdfScript.Reader;
 using PagePerfect.PdfScript.Writer.Resources.Fonts;
 using PagePerfect.PdfScript.Writer.Resources.Images;
@@ -491,7 +492,45 @@ public class PdfDocumentWriter : IPdfDocumentWriter
             throw new PdfDocumentWriterException("Invalid state. The document must be open, and not yet closed.");
 
         _writer.Flush();
-        await _stream.WriteAsync(buffer, start, length);
+        await _stream.WriteAsync(buffer.AsMemory(start, length));
+    }
+
+    /// <summary>
+    /// Writes the content of the specified buffer to the current contents stream as a hex string.
+    /// </summary>
+    /// <param name="buffer">The buffer.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public async Task WriteHexString(byte[] buffer) => await WriteHexString(buffer, 0, buffer.Length);
+
+    /// <summary>
+    /// Writes the content of the specified buffer to the current contents stream as a hex string.
+    /// </summary>
+    /// <param name="buffer">The buffer.</param>
+    /// <param name="start">The index to start writing from.</param>
+    /// <param name="length">The number of bytes to write.</param>
+    /// <returns>A task that represents the asynchronous operation.</returns>
+    public async Task WriteHexString(byte[] buffer, int start, int length)
+    {
+        if (_state == WriterState.None || _state == WriterState.Closed)
+            throw new PdfDocumentWriterException("Invalid state. The document must be open, and not yet closed.");
+
+        if (start < 0 || start >= buffer.Length) throw new ArgumentOutOfRangeException(nameof(start), "Invalid start index. The start index must be within the bounds of the buffer.");
+        if (length < 0 || start + length > buffer.Length) throw new ArgumentOutOfRangeException(nameof(start), "Invalid length. The length must be within the bounds of the buffer.");
+
+        var hex = new byte[2 + length * 2];
+        hex[0] = (byte)'<';
+        var n = 1;
+        for (var i = start; i < start + length; i++)
+        {
+            var high = buffer[i] >> 4;
+            var low = buffer[i] & 0x0F;
+            hex[n++] = (byte)(high < 10 ? high + 48 : high + 55);
+            hex[n++] = (byte)(low < 10 ? low + 48 : low + 55);
+        }
+        hex[n] = (byte)'>';
+
+        _writer.Flush();
+        await _stream.WriteAsync(hex.AsMemory(0, n + 1));
     }
 
     /// <summary>
@@ -818,84 +857,87 @@ public class PdfDocumentWriter : IPdfDocumentWriter
         // [ start [ width1 width2 ... ] start [ width1 width2 ... ] ... ]
         // where 'start' is a glyph index, and 'width1', 'width2', etc. are the widths of the glyphs
         // in the sequence. This is used to generate the /W array in the CID font.
-        /*
-        const unitsPerEm = font.info.unitsPerEm || 1000
-        const usedGlyphs = font.usedGlyphs.sort((a, b) => a - b)
-        const widths = []
-        let prev = null
-        let sequence = null
-        for(let i = 0; i < usedGlyphs.length; i++) {
-            const g = usedGlyphs[i]
-            const metric = font.metrics[g]
-            if(prev && g===prev+1) {
-                sequence.push(Math.round(metric.advanceWidth * 1000 / unitsPerEm))                
-            } else {
-                if(sequence) {
-                    widths.push(sequence)
+        var unitsPerEm = font.Info.UnitsPerEm;
+        var usedGlyphs = font.UsedGlyphs.Order().ToArray();
+        var widths = new List<PdfsValue>();
+        uint? prev = null;
+        List<PdfsValue>? sequence = null;
+        for (var i = 0; i < usedGlyphs.Length; i++)
+        {
+            var g = usedGlyphs[i];
+            var metric = font.Info.Glyphs[g];
+            if (prev.HasValue && g == prev + 1)
+            {
+                sequence!.Add(new PdfsValue((float)Math.Round(metric.Metric.AdvanceWidth * 1000 / (float)unitsPerEm, 0)));
+            }
+            else
+            {
+                if (null != sequence)
+                {
+                    widths.Add(new PdfsValue(sequence.ToArray()));
                 }
-                widths.push(g)
-                sequence = [Math.round(font.metrics[g].advanceWidth * 1000 / unitsPerEm)]
+                widths.Add(new PdfsValue(g));
+                sequence = [new PdfsValue((float)Math.Round(metric.Metric.AdvanceWidth * 1000 / (float)unitsPerEm, 0))];
             }
-            prev = g
+            prev = g;
         }
-        if(sequence) { widths.push(sequence) }
+        if (null != sequence) { widths.Add(new PdfsValue(sequence.ToArray())); }
 
-        this.#writeObject(cidRef, {
-            "/Type": "/Font",
-            "/Subtype": "/CIDFontType2",
-            "/BaseFont": `/${font.typename.replace(/ /g, '-')}`,
-            "/CIDSystemInfo": {
-                "/Registry": "(Adobe)",
-                "/Ordering": "(Identity-H)",
-                "/Supplement": 0
-            },
-            "/FontDescriptor": descriptorRef.toString(),
-            "/W": widths
-        })
+        await OpenObject(cidRef, "Font");
+        await _writer.WriteLineAsync($"\t/Subtype\t/CIDFontType2");
+        await _writer.WriteLineAsync($"\t/BaseFont\t/{font.Typename.Replace(' ', '-')}");
+        await _writer.WriteLineAsync($"\t/CIDSystemInfo\t<<");
+        await _writer.WriteLineAsync($"\t\t/Registry\t(Adobe)");
+        await _writer.WriteLineAsync($"\t\t/Ordering\t(Identity-H)");
+        await _writer.WriteLineAsync($"\t\t/Supplement\t0");
+        await _writer.WriteLineAsync($"\t>>");
+        await _writer.WriteLineAsync($"\t/FontDescriptor\t{descriptorRef.ToString(PdfObjectNotation.Reference)}");
+        await _writer.WriteAsync("\t/W\t");
+        await WriteValue(new PdfsValue(widths.ToArray()));
+        await _writer.WriteLineAsync();
+        await CloseObject();
 
-        const cmap = new Uint8Array(64*1024)
-        const encoder = new TextEncoder()
-        let cmapWritten = 0
-        function writeCmap(chunk) {
-            const result = encoder.encodeInto(chunk, cmap.subarray(cmapWritten))
-            if (0 === result.written) throw "Buffer overflow"
-            cmapWritten += result.written
+
+        var cmapBuffer = new MemoryStream();
+        using var cmapWriter = new StreamWriter(cmapBuffer);
+        await cmapWriter.WriteLineAsync("/CIDInit /ProcSet findresource begin");
+        await cmapWriter.WriteLineAsync("12 dict begin");
+        await cmapWriter.WriteLineAsync("begincmap");
+        await cmapWriter.WriteLineAsync("\t/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity-H) /Supplement 0 >>");
+        await cmapWriter.WriteLineAsync("\t/CMapName /Identity-H");
+        await cmapWriter.WriteLineAsync("\t/CMapType 2");
+        await cmapWriter.WriteLineAsync("\t1 begincodespacerange");
+        await cmapWriter.WriteLineAsync("\t\t<0000> <FFFF>");
+        await cmapWriter.WriteLineAsync("\tendcodespacerange");
+        await cmapWriter.WriteLineAsync($"\t{usedGlyphs.Length} beginbfchar");
+        var map = new Dictionary<uint, uint>();
+        foreach (var key in font.Info.Cmap.Keys)
+        {
+            map[font.Info.Cmap[key]] = key;
         }
-
-        writeCmap("/CIDInit /ProcSet findresource begin\n")
-        writeCmap("12 dict begin\n")
-        writeCmap("begincmap\n")
-        writeCmap(`\t/CIDSystemInfo << /Registry (Adobe) /Ordering (Identity-H) /Supplement 0 >>\n`)
-        writeCmap("\t/CMapName /Identity-H\n")
-        writeCmap("\t/CMapType 2\n")
-        writeCmap("\t1 begincodespacerange\n")
-        writeCmap("\t\t<0000> <FFFF>\n")
-        writeCmap("\tendcodespacerange\n")
-        writeCmap("\t2 beginbfchar\n")
-        const map = { }
-        for(let c of Object.keys(font.cmap)) { map[font.cmap[c]] = Number(c) }
-        for(let g of usedGlyphs) {
-            const ch = map[g]
-            if(ch) {
-                writeCmap(`\t\t<${g.toString(16).padStart(4, '0')}> <${ch.toString(16).padStart(4, '0')}> \n`)
-            }
+        foreach (var g in usedGlyphs)
+        {
+            var ch = map[g];
+            await cmapWriter.WriteLineAsync($"\t\t<{g:X4}> <{ch:X4}>");
         }
-        writeCmap("\tendbfchar\n")
-        writeCmap("\tendcmap\n")
-        writeCmap("CMapName currentdict /CMap defineresource pop\n")
-        writeCmap("end\n")
-        writeCmap("end\n")
-            
-        this.openObject(null, toUnicodeRef)
-        this.#writeLine(`\t/Length\t${cmapWritten}`)
-        this.#writeLine(">>")
-        this.#writeLine("stream")
+        await cmapWriter.WriteLineAsync("\tendbfchar");
+        await cmapWriter.WriteLineAsync("\tendcmap");
+        await cmapWriter.WriteLineAsync("CMapName currentdict /CMap defineresource pop");
+        await cmapWriter.WriteLineAsync("end");
+        await cmapWriter.WriteLineAsync("end");
+        cmapWriter.Flush();
 
-        this.writeBuffer(cmap, 0, cmapWritten)
+        var cmapLength = cmapBuffer.Length;
 
-        this.#writeLine("\r\nendstream")
-        this.#writeLine("endobj")
-        */
+        await OpenObject(toUnicodeRef, null);
+        await _writer.WriteLineAsync($"\t/Length\t{cmapBuffer.Length}");
+        await _writer.WriteLineAsync(">>");
+        await _writer.WriteLineAsync("stream");
+
+        await WriteBuffer(cmapBuffer.ToArray(), 0, (int)cmapLength);
+
+        await _writer.WriteLineAsync("\r\nendstream");
+        await _writer.WriteLineAsync("endobj");
     }
 
     /// <summary>
